@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { PlusCircle, MapPin, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { PlusCircle, MapPin, Clock, ArrowRight, Sparkles, MessageSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -31,20 +31,40 @@ const statusStyle: Record<string, string> = {
 export default function Dashboard() {
   const { profile } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [myActivity, setMyActivity] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const isHomeowner = profile?.role === "homeowner";
 
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      let query = supabase.from("jobs").select("*").order("created_at", { ascending: false });
-      if (isHomeowner) query = query.eq("homeowner_id", profile!.id);
-      else query = query.eq("status", "open");
-      const { data } = await query.limit(20);
-      setJobs((data as Job[]) ?? []);
+      if (isHomeowner) {
+        const { data } = await supabase.from("jobs").select("*")
+          .eq("homeowner_id", profile!.id)
+          .order("created_at", { ascending: false }).limit(20);
+        setJobs((data as Job[]) ?? []);
+      } else {
+        // Helper: open jobs feed + their own activity (interested or assigned)
+        const [{ data: openJobs }, { data: interests }, { data: assigned }] = await Promise.all([
+          supabase.from("jobs").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(10),
+          supabase.from("job_interests").select("job_id").eq("helper_id", profile!.id),
+          supabase.from("jobs").select("*").eq("helper_id", profile!.id).order("created_at", { ascending: false }),
+        ]);
+        const interestIds = (interests ?? []).map((r: any) => r.job_id);
+        let interestJobs: Job[] = [];
+        if (interestIds.length) {
+          const { data: ij } = await supabase.from("jobs").select("*").in("id", interestIds);
+          interestJobs = (ij as Job[]) ?? [];
+        }
+        // Merge assigned + interested, dedupe by id
+        const map = new Map<string, Job>();
+        [...(assigned as Job[] ?? []), ...interestJobs].forEach((j) => map.set(j.id, j));
+        setMyActivity(Array.from(map.values()).sort((a, b) => (b.created_at > a.created_at ? 1 : -1)));
+        setJobs((openJobs as Job[]) ?? []);
+      }
       setLoading(false);
     };
-    if (profile) fetch();
+    if (profile) fetchData();
   }, [profile, isHomeowner]);
 
   return (
@@ -85,6 +105,21 @@ export default function Dashboard() {
             </div>
           </div>
         </Link>
+      )}
+
+      {/* Helper: my activity (interests + assigned) */}
+      {!isHomeowner && !loading && myActivity.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-2xl">Your activity</h2>
+            <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+              <MessageSquare className="h-3.5 w-3.5" /> Tap to chat & view PIN
+            </span>
+          </div>
+          <div className="grid gap-3">
+            {myActivity.map((j) => <JobCard key={j.id} job={j} />)}
+          </div>
+        </div>
       )}
 
       {/* Jobs list */}
