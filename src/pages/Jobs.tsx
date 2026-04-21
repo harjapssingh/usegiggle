@@ -44,6 +44,16 @@ export default function Jobs() {
     if (error) { toast.error(error.message); return; }
     setInterested((s) => new Set([...s, jobId]));
     toast.success("Interest sent! The homeowner will see it.");
+
+    // If under 18, trigger guardian approval
+    const { data: hp } = await supabase.from("helper_profiles").select("is_under_18, guardian_email").eq("id", user.id).maybeSingle();
+    if (hp?.is_under_18 && hp.guardian_email) {
+      const { data } = await supabase.functions.invoke("request-guardian-approval", {
+        body: { job_id: jobId, app_origin: window.location.origin },
+      });
+      if (data?.emailSent) toast.info(`Guardian email sent to ${data.guardianEmail}.`);
+      else if (data?.approveUrl) toast.info("Open the job to share the guardian link.");
+    }
   };
 
   return (
@@ -68,7 +78,7 @@ export default function Jobs() {
             const already = interested.has(j.id);
             return (
               <div key={j.id} className="card-soft card-soft-hover p-5 flex flex-col">
-                <div className="flex items-start gap-3 mb-3">
+                <Link to={`/app/jobs/${j.id}`} className="flex items-start gap-3 mb-3">
                   <div className="h-11 w-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
                     <Icon className="h-5 w-5" />
                   </div>
@@ -77,7 +87,7 @@ export default function Jobs() {
                     <p className="font-semibold leading-snug">{j.description}</p>
                   </div>
                   <span className="font-display text-xl text-primary">${Number(j.budget).toFixed(0)}</span>
-                </div>
+                </Link>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mb-4">
                   {j.neighbourhood && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{j.neighbourhood}</span>}
                   {j.scheduled_date && <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{new Date(j.scheduled_date).toLocaleDateString()}{j.scheduled_time_window ? ` · ${j.scheduled_time_window}` : ""}</span>}
