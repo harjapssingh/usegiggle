@@ -22,17 +22,31 @@ interface Job {
 export default function Jobs() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [interested, setInterested] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetch = async () => {
-      const [{ data: jobsData }, { data: myInt }] = await Promise.all([
+      const [{ data: jobsData }, { data: myInt }, { data: assigned }] = await Promise.all([
         supabase.from("jobs").select("*").eq("status", "open").order("created_at", { ascending: false }),
         user ? supabase.from("job_interests").select("job_id").eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
+        user ? supabase.from("jobs").select("*").eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
       ]);
-      setJobs((jobsData as Job[]) ?? []);
-      setInterested(new Set((myInt ?? []).map((r: any) => r.job_id)));
+      const interestIds = new Set((myInt ?? []).map((r: any) => r.job_id));
+      setInterested(interestIds);
+
+      // Build "my jobs" = interested jobs (any status) + assigned jobs, deduped
+      const map = new Map<string, Job>();
+      (assigned as Job[] ?? []).forEach((j) => map.set(j.id, j));
+      if (interestIds.size && user) {
+        const { data: ij } = await supabase.from("jobs").select("*").in("id", Array.from(interestIds));
+        (ij as Job[] ?? []).forEach((j) => map.set(j.id, j));
+      }
+      setMyJobs(Array.from(map.values()));
+
+      // Open feed: hide ones I've already shown interest in
+      setJobs(((jobsData as Job[]) ?? []).filter((j) => !interestIds.has(j.id)));
       setLoading(false);
     };
     fetch();
@@ -57,9 +71,35 @@ export default function Jobs() {
   };
 
   return (
-    <div>
-      <h1 className="font-display text-3xl md:text-4xl mb-1">Open jobs</h1>
-      <p className="text-muted-foreground mb-6">Tap "I'm interested" — the homeowner will pick from interested helpers.</p>
+    <div className="space-y-8">
+      {myJobs.length > 0 && (
+        <section>
+          <h2 className="font-display text-2xl mb-1">Your jobs</h2>
+          <p className="text-muted-foreground mb-4 text-sm">Jobs you've shown interest in or been confirmed for. Tap to chat & view PIN.</p>
+          <div className="grid gap-3 md:grid-cols-2">
+            {myJobs.map((j) => {
+              const Icon = categoryIcon(j.category);
+              return (
+                <Link key={j.id} to={`/app/jobs/${j.id}`} className="card-soft card-soft-hover p-5 flex items-start gap-3">
+                  <div className="h-11 w-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">{categoryLabel(j.category)}</p>
+                    <p className="font-semibold leading-snug line-clamp-2">{j.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1 capitalize">Status: {(j as any).status?.replace("_", " ") ?? "open"}</p>
+                  </div>
+                  <span className="font-display text-lg text-primary">${Number(j.budget).toFixed(0)}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <h1 className="font-display text-3xl md:text-4xl mb-1">Open jobs</h1>
+        <p className="text-muted-foreground mb-6">Tap "I'm interested" — the homeowner will pick from interested helpers.</p>
 
       {loading ? (
         <div className="grid gap-3">{[0,1,2].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}</div>
