@@ -120,6 +120,47 @@ export type Database = {
           },
         ]
       }
+      job_guardian_approvals: {
+        Row: {
+          approved: boolean
+          approved_at: string | null
+          created_at: string
+          guardian_email: string
+          helper_id: string
+          id: string
+          job_id: string
+          token: string
+        }
+        Insert: {
+          approved?: boolean
+          approved_at?: string | null
+          created_at?: string
+          guardian_email: string
+          helper_id: string
+          id?: string
+          job_id: string
+          token?: string
+        }
+        Update: {
+          approved?: boolean
+          approved_at?: string | null
+          created_at?: string
+          guardian_email?: string
+          helper_id?: string
+          id?: string
+          job_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_guardian_approvals_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_interests: {
         Row: {
           created_at: string
@@ -163,6 +204,8 @@ export type Database = {
         Row: {
           budget: number
           category: Database["public"]["Enums"]["task_category"]
+          completed_at: string | null
+          completion_pin: string | null
           created_at: string
           description: string
           helper_id: string | null
@@ -171,12 +214,16 @@ export type Database = {
           neighbourhood: string | null
           scheduled_date: string | null
           scheduled_time_window: string | null
+          start_pin: string | null
+          started_at: string | null
           status: Database["public"]["Enums"]["job_status"]
           updated_at: string
         }
         Insert: {
           budget: number
           category: Database["public"]["Enums"]["task_category"]
+          completed_at?: string | null
+          completion_pin?: string | null
           created_at?: string
           description: string
           helper_id?: string | null
@@ -185,12 +232,16 @@ export type Database = {
           neighbourhood?: string | null
           scheduled_date?: string | null
           scheduled_time_window?: string | null
+          start_pin?: string | null
+          started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           updated_at?: string
         }
         Update: {
           budget?: number
           category?: Database["public"]["Enums"]["task_category"]
+          completed_at?: string | null
+          completion_pin?: string | null
           created_at?: string
           description?: string
           helper_id?: string | null
@@ -199,6 +250,8 @@ export type Database = {
           neighbourhood?: string | null
           scheduled_date?: string | null
           scheduled_time_window?: string | null
+          start_pin?: string | null
+          started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           updated_at?: string
         }
@@ -215,6 +268,38 @@ export type Database = {
             columns: ["homeowner_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          job_id: string
+          sender_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          job_id: string
+          sender_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          job_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
@@ -254,7 +339,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_pin: { Args: never; Returns: string }
+      is_job_participant: {
+        Args: { _job_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       job_status:
