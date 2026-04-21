@@ -12,8 +12,10 @@ import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import PostJob from "./pages/PostJob";
 import Jobs from "./pages/Jobs";
+import JobDetail from "./pages/JobDetail";
 import Helpers from "./pages/Helpers";
 import Profile from "./pages/Profile";
+import GuardianApprove from "./pages/GuardianApprove";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +30,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/guardian-approve" element={<GuardianApprove />} />
             <Route
               path="/onboarding"
               element={
@@ -47,6 +50,7 @@ const App = () => (
               <Route index element={<Dashboard />} />
               <Route path="post" element={<PostJob />} />
               <Route path="jobs" element={<Jobs />} />
+              <Route path="jobs/:id" element={<JobDetail />} />
               <Route path="helpers" element={<Helpers />} />
               <Route path="profile" element={<Profile />} />
             </Route>

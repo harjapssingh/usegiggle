@@ -117,7 +117,7 @@ export default function Dashboard() {
 function JobCard({ job }: { job: Job }) {
   const Icon = categoryIcon(job.category);
   return (
-    <div className="card-soft card-soft-hover p-5 flex items-start gap-4">
+    <Link to={`/app/jobs/${job.id}`} className="card-soft card-soft-hover p-5 flex items-start gap-4">
       <div className="h-12 w-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
         <Icon className="h-5 w-5" />
       </div>
@@ -135,7 +135,7 @@ function JobCard({ job }: { job: Job }) {
           <span className="font-semibold text-foreground">${Number(job.budget).toFixed(0)}</span>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 
