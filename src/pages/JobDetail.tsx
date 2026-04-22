@@ -194,7 +194,7 @@ export default function JobDetail() {
       </button>
 
       {/* Job summary */}
-      <div className="card-soft p-6">
+      <div className="card-soft p-6 animate-fade-up">
         <div className="flex items-start gap-4">
           <div className="h-12 w-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
             <Icon className="h-5 w-5" />
@@ -287,10 +287,12 @@ export default function JobDetail() {
       )}
 
       {job.status === "completed" && (
-        <div className="card-soft p-6 text-center bg-primary-soft/40">
-          <Check className="h-8 w-8 text-primary mx-auto mb-2" />
-          <p className="font-display text-xl">Job complete</p>
-          <p className="text-sm text-muted-foreground">Thanks for helping out!</p>
+        <div className="card-soft p-8 text-center bg-primary-soft/40 animate-scale-in">
+          <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground mx-auto mb-3 flex items-center justify-center animate-check-pop">
+            <Check className="h-8 w-8" />
+          </div>
+          <p className="font-display text-2xl">Job complete 🎉</p>
+          <p className="text-sm text-muted-foreground mt-1">Thanks for helping out — your neighbourhood is a little brighter today.</p>
         </div>
       )}
 
@@ -318,7 +320,7 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
   const pinForPhase = phase === "start" ? job.start_pin : job.completion_pin;
 
   return (
-    <div className="card-soft p-6 bg-accent-soft/30">
+    <div className="card-soft p-6 bg-accent-soft/30 animate-slide-up">
       <div className="flex items-center gap-2 mb-2">
         <Lock className="h-5 w-5 text-primary" />
         <h2 className="font-display text-xl">{phase === "start" ? "Start PIN" : "Completion PIN"}</h2>
@@ -330,25 +332,31 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
       </p>
 
       {isHomeowner && pinForPhase && (
-        <div className="bg-card rounded-2xl p-6 text-center">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Your PIN</p>
-          <p className="font-display text-5xl tracking-[0.5em] pl-[0.5em]">{pinForPhase}</p>
+        <div className="bg-card rounded-2xl p-6 text-center animate-pin-pop" key={phase}>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
+            {phase === "start" ? "Share to start" : "Share to complete"}
+          </p>
+          <p className="font-display text-5xl tracking-[0.5em] pl-[0.5em] text-primary">{pinForPhase}</p>
+          <p className="text-xs text-muted-foreground mt-3">Read it out loud — don't text it.</p>
         </div>
       )}
 
       {isHelper && (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-fade-in">
+          <p className="text-sm text-center text-muted-foreground">
+            {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
+          </p>
           <div className="flex justify-center">
             <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
               <InputOTPGroup>
-                <InputOTPSlot index={0} />
-                <InputOTPSlot index={1} />
-                <InputOTPSlot index={2} />
-                <InputOTPSlot index={3} />
+                <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
+                <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
+                <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
               </InputOTPGroup>
             </InputOTP>
           </div>
-          <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target">
+          <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
             {phase === "start" ? "Start job" : "Mark complete"}
           </Button>
         </div>
