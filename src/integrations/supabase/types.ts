@@ -336,12 +336,85 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      helper_profiles_public: {
+        Row: {
+          bio: string | null
+          categories: Database["public"]["Enums"]["task_category"][] | null
+          created_at: string | null
+          hourly_rate: number | null
+          id: string | null
+          is_active: boolean | null
+          per_job_rate: number | null
+          rate_type: string | null
+          school_verified: boolean | null
+        }
+        Insert: {
+          bio?: string | null
+          categories?: Database["public"]["Enums"]["task_category"][] | null
+          created_at?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          per_job_rate?: number | null
+          rate_type?: string | null
+          school_verified?: boolean | null
+        }
+        Update: {
+          bio?: string | null
+          categories?: Database["public"]["Enums"]["task_category"][] | null
+          created_at?: string | null
+          hourly_rate?: number | null
+          id?: string | null
+          is_active?: boolean | null
+          per_job_rate?: number | null
+          rate_type?: string | null
+          school_verified?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "helper_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       generate_pin: { Args: never; Returns: string }
+      get_helper_for_job: {
+        Args: { _helper_id: string; _job_id: string }
+        Returns: {
+          age: number
+          avatar_url: string
+          bio: string
+          full_name: string
+          hourly_rate: number
+          id: string
+          is_under_18: boolean
+          per_job_rate: number
+          rate_type: string
+          school_name: string
+        }[]
+      }
+      get_job_pins: {
+        Args: { _job_id: string }
+        Returns: {
+          completion_pin: string
+          start_pin: string
+        }[]
+      }
       is_job_participant: {
         Args: { _job_id: string; _user_id: string }
+        Returns: boolean
+      }
+      verify_completion_pin: {
+        Args: { _job_id: string; _pin: string }
+        Returns: boolean
+      }
+      verify_start_pin: {
+        Args: { _job_id: string; _pin: string }
         Returns: boolean
       }
     }

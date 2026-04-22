@@ -7,7 +7,6 @@ import { categoryLabel, type CategoryKey } from "@/lib/categories";
 interface Helper {
   id: string;
   bio: string | null;
-  school_name: string | null;
   school_verified: boolean;
   hourly_rate: number | null;
   categories: CategoryKey[];
@@ -20,12 +19,12 @@ export default function Helpers() {
 
   useEffect(() => {
     (async () => {
+      // Use the public-safe view that excludes minors' guardian/age/school details.
       const { data: hData } = await supabase
-        .from("helper_profiles")
-        .select("id, bio, school_name, school_verified, hourly_rate, categories")
-        .eq("is_active", true)
+        .from("helper_profiles_public")
+        .select("id, bio, school_verified, hourly_rate, categories")
         .limit(50);
-      const ids = (hData ?? []).map((h) => h.id);
+      const ids = (hData ?? []).map((h: any) => h.id);
       const { data: pData } = ids.length
         ? await supabase.from("profiles").select("id, full_name, neighbourhood, avatar_url").in("id", ids)
         : { data: [] as any[] };
@@ -61,7 +60,7 @@ export default function Helpers() {
                     {h.school_verified && <BadgeCheck className="h-4 w-4 text-primary shrink-0" />}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {h.school_name ?? "—"} {h.profiles?.neighbourhood ? `· ${h.profiles.neighbourhood}` : ""}
+                    {h.profiles?.neighbourhood ?? "—"}
                   </p>
                 </div>
                 {h.hourly_rate && (
