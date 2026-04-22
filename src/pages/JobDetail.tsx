@@ -101,7 +101,7 @@ export default function JobDetail() {
           helperIds.map((hid) => supabase.rpc("get_helper_for_job", { _job_id: id, _helper_id: hid }))
         );
         const { data: approvals } = await supabase
-          .from("job_guardian_approvals")
+          .from("job_helper_approvals")
           .select("helper_id, approved")
           .eq("job_id", id)
           .in("helper_id", helperIds);
@@ -132,10 +132,10 @@ export default function JobDetail() {
       }
     }
 
-    // Helper viewing: load guardian status for this job
+    // Helper viewing: load guardian approval status for this job
     if (user && profile?.role === "helper") {
       const { data: ga } = await supabase
-        .from("job_guardian_approvals")
+        .from("job_helper_approvals")
         .select("approved")
         .eq("job_id", id).eq("helper_id", user.id)
         .maybeSingle();
