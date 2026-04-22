@@ -435,7 +435,7 @@ export type Database = {
         | "gardening"
         | "pet_care"
         | "other"
-      user_role: "helper" | "homeowner" | "admin"
+      user_role: "helper" | "homeowner" | "admin" | "guardian"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -581,7 +581,7 @@ export const Constants = {
         "pet_care",
         "other",
       ],
-      user_role: ["helper", "homeowner", "admin"],
+      user_role: ["helper", "homeowner", "admin", "guardian"],
     },
   },
 } as const
