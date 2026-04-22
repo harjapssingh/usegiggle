@@ -60,9 +60,26 @@ export default function JobDetail() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const { data: jobData } = await supabase.from("jobs").select("*").eq("id", id).maybeSingle();
+    // NOTE: select explicit columns — start_pin/completion_pin are no longer
+    // exposed via the table; homeowners fetch them via the get_job_pins RPC.
+    const { data: jobData } = await supabase
+      .from("jobs")
+      .select("id, category, description, budget, status, neighbourhood, scheduled_date, scheduled_time_window, homeowner_id, helper_id, started_at, completed_at")
+      .eq("id", id)
+      .maybeSingle();
     if (!jobData) { setLoading(false); return; }
-    setJob(jobData as Job);
+    const baseJob = { ...(jobData as any), start_pin: null, completion_pin: null } as Job;
+
+    // If the current user is the homeowner, fetch the PINs via secure RPC so they can share them.
+    if (user && (jobData as any).homeowner_id === user.id) {
+      const { data: pins } = await supabase.rpc("get_job_pins", { _job_id: id });
+      const row = Array.isArray(pins) ? pins[0] : pins;
+      if (row) {
+        baseJob.start_pin = (row as any).start_pin ?? null;
+        baseJob.completion_pin = (row as any).completion_pin ?? null;
+      }
+    }
+    setJob(baseJob);
 
     if (jobData.helper_id) {
       const { data: hp } = await supabase.from("profiles").select("full_name").eq("id", jobData.helper_id).maybeSingle();
@@ -124,17 +141,18 @@ export default function JobDetail() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Realtime: refresh when job changes (status / pins)
+  // Realtime: refresh when job changes (status). PIN columns are not exposed,
+  // so on any change we re-load to also refresh PINs for the homeowner.
   useEffect(() => {
     if (!id) return;
     const ch = supabase
       .channel(`job-${id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${id}` }, (payload) => {
-        setJob((prev) => (prev ? { ...prev, ...(payload.new as Job) } : (payload.new as Job)));
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${id}` }, () => {
+        load();
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [id]);
+  }, [id, load]);
 
   const confirmHelper = async (helperId: string) => {
     if (!job) return;
@@ -156,17 +174,21 @@ export default function JobDetail() {
   const submitPin = async () => {
     if (!job || pinInput.length !== 4) return;
     setBusy(true);
-    if (job.status === "matched") {
-      // start
-      if (pinInput !== job.start_pin) { toast.error("That PIN doesn't match."); setBusy(false); return; }
-      const { error } = await supabase.from("jobs").update({ status: "in_progress", started_at: new Date().toISOString() }).eq("id", job.id);
-      if (error) toast.error(error.message); else { toast.success("Job started!"); setPinInput(""); }
-    } else if (job.status === "in_progress") {
-      if (pinInput !== job.completion_pin) { toast.error("That PIN doesn't match."); setBusy(false); return; }
-      const { error } = await supabase.from("jobs").update({ status: "completed", completed_at: new Date().toISOString() }).eq("id", job.id);
-      if (error) toast.error(error.message); else { toast.success("Job complete! 🎉"); setPinInput(""); }
+    try {
+      if (job.status === "matched") {
+        const { data, error } = await supabase.rpc("verify_start_pin", { _job_id: job.id, _pin: pinInput });
+        if (error) { toast.error("Couldn't verify PIN. Try again."); return; }
+        if (data === true) { toast.success("Job started!"); setPinInput(""); }
+        else toast.error("That PIN doesn't match.");
+      } else if (job.status === "in_progress") {
+        const { data, error } = await supabase.rpc("verify_completion_pin", { _job_id: job.id, _pin: pinInput });
+        if (error) { toast.error("Couldn't verify PIN. Try again."); return; }
+        if (data === true) { toast.success("Job complete! 🎉"); setPinInput(""); }
+        else toast.error("That PIN doesn't match.");
+      }
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
   };
 
   const requestGuardian = async () => {
