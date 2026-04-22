@@ -34,18 +34,23 @@ export default function Onboarding() {
   const [bio, setBio] = useState("");
   const [categories, setCategories] = useState<CategoryKey[]>([]);
   const [hourlyRate, setHourlyRate] = useState<string>("20");
+  const [guardianName, setGuardianName] = useState("");
+  const [guardianEmail, setGuardianEmail] = useState("");
 
   // Homeowner-only
   const [ageRange, setAgeRange] = useState<string>("");
   const [accessNotes, setAccessNotes] = useState("");
 
+  const isUnder18 = role === "helper" && Number(age) > 0 && Number(age) < 18;
+
   const steps = useMemo(() => {
     if (!role) return ["role"];
     const base = ["role", "name", "neighbourhood"];
-    return role === "helper"
-      ? [...base, "age", "school", "categories", "rate", "bio"]
-      : [...base, "ageRange", "access"];
-  }, [role]);
+    if (role === "homeowner") return [...base, "ageRange", "access"];
+    const helperSteps = [...base, "age", "school"];
+    if (isUnder18) helperSteps.push("guardian");
+    return [...helperSteps, "categories", "rate", "bio"];
+  }, [role, isUnder18]);
 
   const progress = ((step + 1) / steps.length) * 100;
   const current = steps[step];
@@ -63,6 +68,7 @@ export default function Onboarding() {
       case "neighbourhood": return neighbourhood.trim().length >= 2;
       case "age": return Number(age) >= 14 && Number(age) <= 24;
       case "school": return school.trim().length >= 2;
+      case "guardian": return guardianName.trim().length >= 2 && /\S+@\S+\.\S+/.test(guardianEmail);
       case "categories": return categories.length > 0;
       case "rate": return Number(hourlyRate) >= 5;
       case "bio": return true;
@@ -94,7 +100,9 @@ export default function Onboarding() {
           hourly_rate: Number(hourlyRate),
           rate_type: "hourly",
           is_under_18: ageNum < 18,
-          is_active: ageNum >= 18, // under-18s pending guardian flow later
+          is_active: true,
+          guardian_name: ageNum < 18 ? guardianName.trim() : null,
+          guardian_email: ageNum < 18 ? guardianEmail.trim() : null,
         });
         if (error) throw error;
       } else {
