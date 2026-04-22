@@ -1,24 +1,29 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/context/AuthContext";
+import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppShell } from "@/components/AppShell";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import GuardianHome from "./pages/GuardianHome";
 import PostJob from "./pages/PostJob";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
 import Helpers from "./pages/Helpers";
 import Profile from "./pages/Profile";
-import GuardianApprove from "./pages/GuardianApprove";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+function HomeRouter() {
+  const { profile } = useAuth();
+  return profile?.role === "guardian" ? <GuardianHome /> : <Dashboard />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -30,7 +35,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/guardian-approve" element={<GuardianApprove />} />
             <Route
               path="/onboarding"
               element={
@@ -47,13 +51,15 @@ const App = () => (
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<HomeRouter />} />
               <Route path="post" element={<PostJob />} />
               <Route path="jobs" element={<Jobs />} />
               <Route path="jobs/:id" element={<JobDetail />} />
               <Route path="helpers" element={<Helpers />} />
               <Route path="profile" element={<Profile />} />
             </Route>
+            {/* Legacy public approval link route — no longer used. */}
+            <Route path="/guardian-approve" element={<Navigate to="/app" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
