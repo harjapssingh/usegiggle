@@ -8,15 +8,21 @@ export function AppShell() {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const isHomeowner = profile?.role === "homeowner";
+  const isGuardian = profile?.role === "guardian";
 
-  const navItems = [
-    { to: "/app", label: "Home", icon: Home, end: true },
-    isHomeowner
-      ? { to: "/app/post", label: "Post a job", icon: PlusCircle, end: false }
-      : { to: "/app/jobs",  label: "Find jobs", icon: PlusCircle, end: false },
-    { to: "/app/helpers", label: isHomeowner ? "Helpers" : "Community", icon: Users, end: false },
-    { to: "/app/profile", label: "Profile", icon: User, end: false },
-  ];
+  const navItems = isGuardian
+    ? [
+        { to: "/app", label: "Approvals", icon: Home, end: true },
+        { to: "/app/profile", label: "Profile", icon: User, end: false },
+      ]
+    : [
+        { to: "/app", label: "Home", icon: Home, end: true },
+        isHomeowner
+          ? { to: "/app/post", label: "Post a job", icon: PlusCircle, end: false }
+          : { to: "/app/jobs",  label: "Find jobs", icon: PlusCircle, end: false },
+        { to: "/app/helpers", label: isHomeowner ? "Helpers" : "Community", icon: Users, end: false },
+        { to: "/app/profile", label: "Profile", icon: User, end: false },
+      ];
 
   const handleSignOut = async () => {
     await signOut();

@@ -14,17 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
+      guardian_helpers: {
+        Row: {
+          confirmed: boolean
+          confirmed_at: string | null
+          guardian_id: string
+          helper_id: string
+          id: string
+          requested_at: string
+        }
+        Insert: {
+          confirmed?: boolean
+          confirmed_at?: string | null
+          guardian_id: string
+          helper_id: string
+          id?: string
+          requested_at?: string
+        }
+        Update: {
+          confirmed?: boolean
+          confirmed_at?: string | null
+          guardian_id?: string
+          helper_id?: string
+          id?: string
+          requested_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guardian_helpers_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardian_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guardian_profiles: {
+        Row: {
+          created_at: string
+          failed_attempts: number
+          id: string
+          link_code: string
+          locked_until: string | null
+          pin_hash: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          failed_attempts?: number
+          id: string
+          link_code?: string
+          locked_until?: string | null
+          pin_hash: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          failed_attempts?: number
+          id?: string
+          link_code?: string
+          locked_until?: string | null
+          pin_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       helper_profiles: {
         Row: {
           age: number | null
           bio: string | null
           categories: Database["public"]["Enums"]["task_category"][]
           created_at: string
-          guardian_approved: boolean
-          guardian_email: string | null
           guardian_name: string | null
-          guardian_phone: string | null
-          guardian_relationship: string | null
           hourly_rate: number | null
           id: string
           is_active: boolean
@@ -39,11 +100,7 @@ export type Database = {
           bio?: string | null
           categories?: Database["public"]["Enums"]["task_category"][]
           created_at?: string
-          guardian_approved?: boolean
-          guardian_email?: string | null
           guardian_name?: string | null
-          guardian_phone?: string | null
-          guardian_relationship?: string | null
           hourly_rate?: number | null
           id: string
           is_active?: boolean
@@ -58,11 +115,7 @@ export type Database = {
           bio?: string | null
           categories?: Database["public"]["Enums"]["task_category"][]
           created_at?: string
-          guardian_approved?: boolean
-          guardian_email?: string | null
           guardian_name?: string | null
-          guardian_phone?: string | null
-          guardian_relationship?: string | null
           hourly_rate?: number | null
           id?: string
           is_active?: boolean
@@ -120,40 +173,44 @@ export type Database = {
           },
         ]
       }
-      job_guardian_approvals: {
+      job_helper_approvals: {
         Row: {
           approved: boolean
           approved_at: string | null
-          created_at: string
-          guardian_email: string
+          guardian_id: string | null
           helper_id: string
           id: string
           job_id: string
-          token: string
+          requested_at: string
         }
         Insert: {
           approved?: boolean
           approved_at?: string | null
-          created_at?: string
-          guardian_email: string
+          guardian_id?: string | null
           helper_id: string
           id?: string
           job_id: string
-          token?: string
+          requested_at?: string
         }
         Update: {
           approved?: boolean
           approved_at?: string | null
-          created_at?: string
-          guardian_email?: string
+          guardian_id?: string | null
           helper_id?: string
           id?: string
           job_id?: string
-          token?: string
+          requested_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "job_guardian_approvals_job_id_fkey"
+            foreignKeyName: "job_helper_approvals_guardian_id_fkey"
+            columns: ["guardian_id"]
+            isOneToOne: false
+            referencedRelation: "guardian_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_helper_approvals_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
@@ -382,6 +439,14 @@ export type Database = {
       }
     }
     Functions: {
+      approve_job_with_pin: {
+        Args: { _helper_id: string; _job_id: string; _pin: string }
+        Returns: boolean
+      }
+      confirm_guardian_link: {
+        Args: { _helper_id: string; _pin: string }
+        Returns: boolean
+      }
       generate_pin: { Args: never; Returns: string }
       get_helper_for_job: {
         Args: { _helper_id: string; _job_id: string }
@@ -405,10 +470,25 @@ export type Database = {
           start_pin: string
         }[]
       }
+      guardian_setup: { Args: { _pin: string }; Returns: string }
       is_job_participant: {
         Args: { _job_id: string; _user_id: string }
         Returns: boolean
       }
+      list_guardian_pending: {
+        Args: never
+        Returns: {
+          helper_id: string
+          helper_name: string
+          job_category: Database["public"]["Enums"]["task_category"]
+          job_description: string
+          job_id: string
+          kind: string
+          requested_at: string
+        }[]
+      }
+      request_guardian_link: { Args: { _code: string }; Returns: string }
+      request_job_approval: { Args: { _job_id: string }; Returns: boolean }
       verify_completion_pin: {
         Args: { _job_id: string; _pin: string }
         Returns: boolean
@@ -435,7 +515,7 @@ export type Database = {
         | "gardening"
         | "pet_care"
         | "other"
-      user_role: "helper" | "homeowner" | "admin"
+      user_role: "helper" | "homeowner" | "admin" | "guardian"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -581,7 +661,7 @@ export const Constants = {
         "pet_care",
         "other",
       ],
-      user_role: ["helper", "homeowner", "admin"],
+      user_role: ["helper", "homeowner", "admin", "guardian"],
     },
   },
 } as const

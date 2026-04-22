@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Heart, HandHeart, Sprout } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Heart, HandHeart, Sprout, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { CATEGORIES, type CategoryKey } from "@/lib/categories";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
-type Role = "helper" | "homeowner";
+type Role = "helper" | "homeowner" | "guardian";
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -34,8 +35,11 @@ export default function Onboarding() {
   const [bio, setBio] = useState("");
   const [categories, setCategories] = useState<CategoryKey[]>([]);
   const [hourlyRate, setHourlyRate] = useState<string>("20");
-  const [guardianName, setGuardianName] = useState("");
-  const [guardianEmail, setGuardianEmail] = useState("");
+  const [guardianCode, setGuardianCode] = useState("");
+
+  // Guardian-only
+  const [guardianPin, setGuardianPin] = useState("");
+  const [guardianPinConfirm, setGuardianPinConfirm] = useState("");
 
   // Homeowner-only
   const [ageRange, setAgeRange] = useState<string>("");
@@ -45,10 +49,12 @@ export default function Onboarding() {
 
   const steps = useMemo(() => {
     if (!role) return ["role"];
-    const base = ["role", "name", "neighbourhood"];
-    if (role === "homeowner") return [...base, "ageRange", "access"];
-    const helperSteps = [...base, "age", "school"];
-    if (isUnder18) helperSteps.push("guardian");
+    const base = ["role", "name"];
+    if (role === "guardian") return [...base, "guardianPin"];
+    const baseWithHood = [...base, "neighbourhood"];
+    if (role === "homeowner") return [...baseWithHood, "ageRange", "access"];
+    const helperSteps = [...baseWithHood, "age", "school"];
+    if (isUnder18) helperSteps.push("guardianLink");
     return [...helperSteps, "categories", "rate", "bio"];
   }, [role, isUnder18]);
 
@@ -68,7 +74,8 @@ export default function Onboarding() {
       case "neighbourhood": return neighbourhood.trim().length >= 2;
       case "age": return Number(age) >= 14 && Number(age) <= 24;
       case "school": return school.trim().length >= 2;
-      case "guardian": return guardianName.trim().length >= 2 && /\S+@\S+\.\S+/.test(guardianEmail);
+      case "guardianLink": return guardianCode.trim().length >= 4;
+      case "guardianPin": return /^\d{4}$/.test(guardianPin) && guardianPin === guardianPinConfirm;
       case "categories": return categories.length > 0;
       case "rate": return Number(hourlyRate) >= 5;
       case "bio": return true;
@@ -85,7 +92,7 @@ export default function Onboarding() {
         id: user.id,
         full_name: fullName.trim(),
         role,
-        neighbourhood: neighbourhood.trim() || null,
+        neighbourhood: role === "guardian" ? null : (neighbourhood.trim() || null),
       });
       if (pErr) throw pErr;
 
@@ -101,9 +108,18 @@ export default function Onboarding() {
           rate_type: "hourly",
           is_under_18: ageNum < 18,
           is_active: true,
-          guardian_name: ageNum < 18 ? guardianName.trim() : null,
-          guardian_email: ageNum < 18 ? guardianEmail.trim() : null,
         });
+        if (error) throw error;
+
+        // If under 18, request a guardian link (guardian must confirm in their app).
+        if (ageNum < 18 && guardianCode.trim()) {
+          const { error: linkErr } = await supabase.rpc("request_guardian_link", {
+            _code: guardianCode.trim(),
+          });
+          if (linkErr) toast.error(linkErr.message); // non-fatal; can retry from profile
+        }
+      } else if (role === "guardian") {
+        const { error } = await supabase.rpc("guardian_setup", { _pin: guardianPin });
         if (error) throw error;
       } else {
         const { error } = await supabase.from("homeowner_profiles").insert({
@@ -164,6 +180,13 @@ export default function Onboarding() {
                   selected={role === "helper"}
                   onClick={() => setRole("helper")}
                 />
+                <RoleCard
+                  icon={ShieldCheck}
+                  title="I'm a guardian"
+                  desc="My child wants to help out — I want to approve their jobs."
+                  selected={role === "guardian"}
+                  onClick={() => setRole("guardian")}
+                />
               </div>
             </Step>
           )}
@@ -192,18 +215,56 @@ export default function Onboarding() {
             </Step>
           )}
 
-          {current === "guardian" && (
-            <Step title="Your guardian's details" subtitle="Since you're under 18, we'll email your parent or guardian a quick approval link before you start any job.">
+          {current === "guardianLink" && (
+            <Step title="Link your guardian" subtitle="Ask your parent or guardian to create a Giggle guardian account. They'll get a short code to give you. You won't be able to apply for jobs until they approve each one with their PIN.">
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="g-name" className="mb-2 block text-sm">Guardian's full name</Label>
-                  <Input id="g-name" value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="e.g. Priya Patel" className="h-14 text-lg rounded-xl bg-card" autoFocus />
+                  <Label htmlFor="g-code" className="mb-2 block text-sm">Guardian's link code</Label>
+                  <Input
+                    id="g-code"
+                    value={guardianCode}
+                    onChange={(e) => setGuardianCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. K7P2QR9X"
+                    className="h-14 text-lg font-mono tracking-widest rounded-xl bg-card uppercase"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Don't have it yet? You can finish onboarding and request the link later from your profile.
+                </p>
+              </div>
+            </Step>
+          )}
+
+          {current === "guardianPin" && (
+            <Step title="Set your guardian PIN" subtitle="Your child will only be approved for a job after you enter this 4-digit PIN. Keep it private — like a debit PIN.">
+              <div className="space-y-6">
+                <div>
+                  <Label className="mb-3 block text-sm">Choose a 4-digit PIN</Label>
+                  <InputOTP maxLength={4} value={guardianPin} onChange={setGuardianPin}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                      <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
+                      <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
+                      <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                    </InputOTPGroup>
+                  </InputOTP>
                 </div>
                 <div>
-                  <Label htmlFor="g-email" className="mb-2 block text-sm">Guardian's email</Label>
-                  <Input id="g-email" type="email" value={guardianEmail} onChange={(e) => setGuardianEmail(e.target.value)} placeholder="parent@example.com" className="h-14 text-lg rounded-xl bg-card" />
+                  <Label className="mb-3 block text-sm">Confirm your PIN</Label>
+                  <InputOTP maxLength={4} value={guardianPinConfirm} onChange={setGuardianPinConfirm}>
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                      <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
+                      <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
+                      <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                    </InputOTPGroup>
+                  </InputOTP>
+                  {guardianPinConfirm.length === 4 && guardianPin !== guardianPinConfirm && (
+                    <p className="text-xs text-destructive mt-2">PINs don't match.</p>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground">We'll only contact them when you express interest in a job.</p>
+                <p className="text-xs text-muted-foreground">After you finish, we'll show you a link code. Share it with your child so they can connect their account to yours.</p>
               </div>
             </Step>
           )}

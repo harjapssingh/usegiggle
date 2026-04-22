@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode, useCallback 
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type Role = "helper" | "homeowner" | "admin";
+type Role = "helper" | "homeowner" | "guardian" | "admin";
 
 interface Profile {
   id: string;

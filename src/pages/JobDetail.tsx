@@ -101,7 +101,7 @@ export default function JobDetail() {
           helperIds.map((hid) => supabase.rpc("get_helper_for_job", { _job_id: id, _helper_id: hid }))
         );
         const { data: approvals } = await supabase
-          .from("job_guardian_approvals")
+          .from("job_helper_approvals")
           .select("helper_id, approved")
           .eq("job_id", id)
           .in("helper_id", helperIds);
@@ -132,10 +132,10 @@ export default function JobDetail() {
       }
     }
 
-    // Helper viewing: load guardian status for this job
+    // Helper viewing: load guardian approval status for this job
     if (user && profile?.role === "helper") {
       const { data: ga } = await supabase
-        .from("job_guardian_approvals")
+        .from("job_helper_approvals")
         .select("approved")
         .eq("job_id", id).eq("helper_id", user.id)
         .maybeSingle();
@@ -200,14 +200,11 @@ export default function JobDetail() {
   const requestGuardian = async () => {
     if (!job) return;
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("request-guardian-approval", {
-      body: { job_id: job.id, app_origin: window.location.origin },
-    });
+    const { error } = await supabase.rpc("request_job_approval", { _job_id: job.id });
     setBusy(false);
     if (error) return toast.error(error.message);
-    setGuardianStatus({ approved: false, approveUrl: data?.approveUrl });
-    if (data?.emailSent) toast.success(`Approval email sent to ${data.guardianEmail}`);
-    else toast.info("Share the approval link with your guardian.");
+    setGuardianStatus({ approved: false });
+    toast.success("Sent! Your guardian will see this in their app and approve with their PIN.");
   };
 
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-40" /><Skeleton className="h-48 rounded-2xl" /></div>;
