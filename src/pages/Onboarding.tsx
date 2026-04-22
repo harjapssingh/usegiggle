@@ -192,6 +192,22 @@ export default function Onboarding() {
             </Step>
           )}
 
+          {current === "guardian" && (
+            <Step title="Your guardian's details" subtitle="Since you're under 18, we'll email your parent or guardian a quick approval link before you start any job.">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="g-name" className="mb-2 block text-sm">Guardian's full name</Label>
+                  <Input id="g-name" value={guardianName} onChange={(e) => setGuardianName(e.target.value)} placeholder="e.g. Priya Patel" className="h-14 text-lg rounded-xl bg-card" autoFocus />
+                </div>
+                <div>
+                  <Label htmlFor="g-email" className="mb-2 block text-sm">Guardian's email</Label>
+                  <Input id="g-email" type="email" value={guardianEmail} onChange={(e) => setGuardianEmail(e.target.value)} placeholder="parent@example.com" className="h-14 text-lg rounded-xl bg-card" />
+                </div>
+                <p className="text-xs text-muted-foreground">We'll only contact them when you express interest in a job.</p>
+              </div>
+            </Step>
+          )}
+
           {current === "categories" && (
             <Step title="What can you help with?" subtitle="Pick everything you'd be happy to do.">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
