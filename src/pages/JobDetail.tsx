@@ -200,14 +200,11 @@ export default function JobDetail() {
   const requestGuardian = async () => {
     if (!job) return;
     setBusy(true);
-    const { data, error } = await supabase.functions.invoke("request-guardian-approval", {
-      body: { job_id: job.id, app_origin: window.location.origin },
-    });
+    const { error } = await supabase.rpc("request_job_approval", { _job_id: job.id });
     setBusy(false);
     if (error) return toast.error(error.message);
-    setGuardianStatus({ approved: false, approveUrl: data?.approveUrl });
-    if (data?.emailSent) toast.success(`Approval email sent to ${data.guardianEmail}`);
-    else toast.info("Share the approval link with your guardian.");
+    setGuardianStatus({ approved: false });
+    toast.success("Sent! Your guardian will see this in their app and approve with their PIN.");
   };
 
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-40" /><Skeleton className="h-48 rounded-2xl" /></div>;

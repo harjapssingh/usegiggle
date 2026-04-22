@@ -59,14 +59,12 @@ export default function Jobs() {
     setInterested((s) => new Set([...s, jobId]));
     toast.success("Interest sent! The homeowner will see it.");
 
-    // If under 18, trigger guardian approval
-    const { data: hp } = await supabase.from("helper_profiles").select("is_under_18, guardian_email").eq("id", user.id).maybeSingle();
-    if (hp?.is_under_18 && hp.guardian_email) {
-      const { data } = await supabase.functions.invoke("request-guardian-approval", {
-        body: { job_id: jobId, app_origin: window.location.origin },
-      });
-      if (data?.emailSent) toast.info(`Guardian email sent to ${data.guardianEmail}.`);
-      else if (data?.approveUrl) toast.info("Open the job to share the guardian link.");
+    // If under 18, request a per-job guardian approval (guardian must approve in their app with PIN).
+    const { data: hp } = await supabase.from("helper_profiles").select("is_under_18").eq("id", user.id).maybeSingle();
+    if (hp?.is_under_18) {
+      const { error: rerr } = await supabase.rpc("request_job_approval", { _job_id: jobId });
+      if (rerr) toast.error(rerr.message);
+      else toast.info("Your guardian needs to approve this in their app.");
     }
   };
 
