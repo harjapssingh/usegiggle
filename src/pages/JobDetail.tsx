@@ -95,28 +95,34 @@ export default function JobDetail() {
 
       if (rows && rows.length) {
         const helperIds = rows.map((r) => r.helper_id);
-        const [{ data: profs }, { data: hps }, { data: approvals }] = await Promise.all([
-          supabase.from("profiles").select("id, full_name, avatar_url").in("id", helperIds),
-          supabase.from("helper_profiles").select("id, age, school_name, bio, hourly_rate, per_job_rate, rate_type, is_under_18").in("id", helperIds),
-          supabase.from("job_guardian_approvals").select("helper_id, approved").eq("job_id", id).in("helper_id", helperIds),
-        ]);
-        const merged: InterestedHelper[] = rows.map((r) => {
-          const p = profs?.find((x: any) => x.id === r.helper_id) ?? {};
-          const hp = hps?.find((x: any) => x.id === r.helper_id) ?? {};
+        // Use the secure RPC so we can read each interested helper's age/school for THIS job context
+        // (helper_profiles is no longer publicly readable).
+        const helpersData = await Promise.all(
+          helperIds.map((hid) => supabase.rpc("get_helper_for_job", { _job_id: id, _helper_id: hid }))
+        );
+        const { data: approvals } = await supabase
+          .from("job_guardian_approvals")
+          .select("helper_id, approved")
+          .eq("job_id", id)
+          .in("helper_id", helperIds);
+
+        const merged: InterestedHelper[] = rows.map((r, i) => {
+          const arr = helpersData[i].data as any[] | null;
+          const h = (arr && arr[0]) ?? {};
           const ga = approvals?.find((x: any) => x.helper_id === r.helper_id);
           return {
             interest_id: r.id,
             helper_id: r.helper_id,
             message: r.message,
-            full_name: (p as any).full_name ?? "Helper",
-            avatar_url: (p as any).avatar_url ?? null,
-            age: (hp as any).age ?? null,
-            school_name: (hp as any).school_name ?? null,
-            bio: (hp as any).bio ?? null,
-            hourly_rate: (hp as any).hourly_rate ?? null,
-            per_job_rate: (hp as any).per_job_rate ?? null,
-            rate_type: (hp as any).rate_type ?? null,
-            is_under_18: (hp as any).is_under_18 ?? false,
+            full_name: h.full_name ?? "Helper",
+            avatar_url: h.avatar_url ?? null,
+            age: h.age ?? null,
+            school_name: h.school_name ?? null,
+            bio: h.bio ?? null,
+            hourly_rate: h.hourly_rate ?? null,
+            per_job_rate: h.per_job_rate ?? null,
+            rate_type: h.rate_type ?? null,
+            is_under_18: h.is_under_18 ?? false,
             guardian_approved_for_job: !!ga?.approved,
           };
         });
