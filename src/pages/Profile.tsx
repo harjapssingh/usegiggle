@@ -36,18 +36,22 @@ export default function Profile() {
         setIsUnder18(!!hp?.is_under_18);
 
         if (hp?.is_under_18) {
-          // Find linked guardian (if any) — uses guardian_helpers RLS (helper can see own row)
+          // Find linked guardian (if any) — uses guardian_helpers RLS (helper can see own row).
+          // Prefer a confirmed link; fall back to most recent pending request.
           const { data: links } = await supabase
             .from("guardian_helpers")
-            .select("guardian_id, confirmed")
+            .select("guardian_id, confirmed, requested_at")
             .eq("helper_id", user.id)
-            .maybeSingle();
-          if (links) {
-            setLinkConfirmed(links.confirmed);
+            .order("confirmed", { ascending: false })
+            .order("requested_at", { ascending: false })
+            .limit(1);
+          const link = links?.[0];
+          if (link) {
+            setLinkConfirmed(link.confirmed);
             const { data: gp } = await supabase
               .from("profiles")
               .select("full_name")
-              .eq("id", links.guardian_id)
+              .eq("id", link.guardian_id)
               .maybeSingle();
             setLinkedGuardianName(gp?.full_name ?? null);
           }

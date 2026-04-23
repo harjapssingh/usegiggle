@@ -236,7 +236,16 @@ export default function JobDetail() {
     setBusy(true);
     const { error } = await supabase.rpc("request_job_approval", { _job_id: job.id });
     setBusy(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      if (/No confirmed guardian/i.test(error.message)) {
+        toast.warning("Link a guardian from your Profile first, then come back here.");
+      } else if (/express interest/i.test(error.message)) {
+        toast.warning("Express interest in this job first, then request guardian approval.");
+      } else {
+        toast.error(error.message);
+      }
+      return;
+    }
     setGuardianStatus({ approved: false });
     toast.success("Sent! Your guardian will see this in their app and approve with their PIN.");
   };
