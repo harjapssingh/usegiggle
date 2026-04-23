@@ -342,6 +342,7 @@ export default function JobDetail() {
           setPinInput={setPinInput}
           submitPin={submitPin}
           busy={busy}
+          pinLock={pinLock}
         />
       )}
 
