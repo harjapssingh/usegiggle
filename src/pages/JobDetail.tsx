@@ -198,16 +198,28 @@ export default function JobDetail() {
     if (!job || pinInput.length !== 4) return;
     setBusy(true);
     try {
-      if (job.status === "matched") {
-        const { data, error } = await supabase.rpc("verify_start_pin", { _job_id: job.id, _pin: pinInput });
-        if (error) { toast.error("Couldn't verify PIN. Try again."); return; }
-        if (data === true) { toast.success("Job started!"); setPinInput(""); }
-        else toast.error("That PIN doesn't match.");
-      } else if (job.status === "in_progress") {
-        const { data, error } = await supabase.rpc("verify_completion_pin", { _job_id: job.id, _pin: pinInput });
-        if (error) { toast.error("Couldn't verify PIN. Try again."); return; }
-        if (data === true) { toast.success("Job complete! 🎉"); setPinInput(""); }
-        else toast.error("That PIN doesn't match.");
+      const fn = job.status === "matched" ? "verify_start_pin" : job.status === "in_progress" ? "verify_completion_pin" : null;
+      if (!fn) return;
+      const { data, error } = await supabase.rpc(fn, { _job_id: job.id, _pin: pinInput });
+      if (error) {
+        const m = /Locked until (.+)/.exec(error.message ?? "");
+        if (m) {
+          setPinLock({ failed_attempts: 5, locked_until: m[1] });
+          toast.error("Too many wrong tries. Locked for 15 minutes.");
+        } else {
+          toast.error("Couldn't verify PIN. Try again.");
+        }
+        setPinInput("");
+        return;
+      }
+      if (data === true) {
+        toast.success(fn === "verify_start_pin" ? "Job started!" : "Job complete! 🎉");
+        setPinInput("");
+        setPinLock(null);
+      } else {
+        await refreshLock();
+        setPinInput("");
+        toast.error("That PIN doesn't match.");
       }
     } finally {
       setBusy(false);
