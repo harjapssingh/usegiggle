@@ -367,7 +367,7 @@ export default function JobDetail() {
   );
 }
 
-function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin, busy }: {
+function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin, busy, pinLock }: {
   job: Job;
   isHomeowner: boolean;
   isHelper: boolean;
@@ -375,9 +375,17 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
   setPinInput: (v: string) => void;
   submitPin: () => void;
   busy: boolean;
+  pinLock: { failed_attempts: number; locked_until: string | null } | null;
 }) {
   const phase = job.status === "matched" ? "start" : "complete";
   const pinForPhase = phase === "start" ? job.start_pin : job.completion_pin;
+
+  const lockedUntilMs = pinLock?.locked_until ? new Date(pinLock.locked_until).getTime() : 0;
+  const isLocked = lockedUntilMs > Date.now();
+  const remaining = isLocked ? Math.max(0, lockedUntilMs - Date.now()) : 0;
+  const remainingMin = Math.floor(remaining / 60000);
+  const remainingSec = Math.floor((remaining % 60000) / 1000);
+  const triesLeft = Math.max(0, 5 - (pinLock?.failed_attempts ?? 0));
 
   return (
     <div className="card-soft p-6 bg-accent-soft/30 animate-slide-up">
@@ -403,22 +411,41 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
 
       {isHelper && (
         <div className="space-y-4 animate-fade-in">
-          <p className="text-sm text-center text-muted-foreground">
-            {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
-          </p>
-          <div className="flex justify-center">
-            <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
-                <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
-                <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
-                <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
-              </InputOTPGroup>
-            </InputOTP>
-          </div>
-          <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
-            {phase === "start" ? "Start job" : "Mark complete"}
-          </Button>
+          {isLocked ? (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-5 text-center animate-fade-in">
+              <Timer className="h-6 w-6 text-destructive mx-auto mb-2" />
+              <p className="font-semibold text-destructive">Too many wrong tries</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Try again in <span className="font-mono font-semibold text-foreground tabular-nums">
+                  {remainingMin}:{String(remainingSec).padStart(2, "0")}
+                </span>
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-center text-muted-foreground">
+                {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
+              </p>
+              <div className="flex justify-center">
+                <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                    <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
+                    <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
+                    <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              {pinLock && pinLock.failed_attempts > 0 && (
+                <p className="text-xs text-center text-destructive animate-fade-in">
+                  Wrong PIN. {triesLeft} {triesLeft === 1 ? "try" : "tries"} left before a 15-minute lock.
+                </p>
+              )}
+              <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
+                {phase === "start" ? "Start job" : "Mark complete"}
+              </Button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -426,18 +453,20 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
 }
 
 function HelperGuardianBlock({ guardianStatus, onRequest, busy }: {
-  guardianStatus: { approved: boolean; approveUrl?: string } | null;
+  guardianStatus: { approved: boolean } | null;
   onRequest: () => void;
   busy: boolean;
 }) {
   if (!guardianStatus) {
     return (
-      <div className="card-soft p-5 bg-accent-soft/30">
+      <div className="card-soft p-5 bg-accent-soft/30 animate-slide-up">
         <div className="flex items-start gap-3">
           <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-medium">Guardian approval needed</p>
-            <p className="text-sm text-muted-foreground mb-3">Since you're under 18, we'll send your guardian a quick approval link before the homeowner sees your interest.</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              Since you're under 18, your guardian has to approve this specific job in their app before the homeowner sees your interest.
+            </p>
             <Button onClick={onRequest} disabled={busy} className="rounded-xl" size="sm">Request guardian approval</Button>
           </div>
         </div>
@@ -446,20 +475,22 @@ function HelperGuardianBlock({ guardianStatus, onRequest, busy }: {
   }
   if (guardianStatus.approved) {
     return (
-      <div className="card-soft p-4 bg-primary-soft/40 flex items-center gap-2 text-sm">
-        <ShieldCheck className="h-4 w-4 text-primary" /> Guardian has approved you for this job.
+      <div className="card-soft p-4 bg-primary-soft/40 flex items-center gap-2 text-sm animate-fade-in">
+        <ShieldCheck className="h-4 w-4 text-primary" /> Your guardian has approved you for this job.
       </div>
     );
   }
   return (
-    <div className="card-soft p-5 bg-muted/40">
-      <p className="font-medium mb-1">Waiting on guardian approval</p>
-      {guardianStatus.approveUrl && (
-        <>
-          <p className="text-sm text-muted-foreground mb-2">Share this link with your guardian if they didn't get the email:</p>
-          <code className="block text-xs bg-card p-2 rounded-lg break-all">{guardianStatus.approveUrl}</code>
-        </>
-      )}
+    <div className="card-soft p-5 bg-muted/40 animate-fade-in">
+      <div className="flex items-start gap-3">
+        <ShieldAlert className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="font-medium">Waiting on guardian approval</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            We've sent the request. Your guardian needs to open their Giggle app and confirm with their PIN.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
