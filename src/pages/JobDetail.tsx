@@ -199,8 +199,7 @@ export default function JobDetail() {
     const row = Array.isArray(data) ? data[0] : data;
     setPinLock(row ? { failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null } : null);
   };
-
-
+  const submitPin = async () => {
     if (!job || pinInput.length !== 4) return;
     setBusy(true);
     try {
