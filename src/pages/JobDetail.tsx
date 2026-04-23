@@ -142,6 +142,14 @@ export default function JobDetail() {
         .eq("job_id", id).eq("helper_id", user.id)
         .maybeSingle();
       if (ga) setGuardianStatus({ approved: ga.approved });
+
+      // Load PIN lockout state if helper is assigned
+      if ((jobData as any).helper_id === user.id) {
+        const { data: lock } = await supabase.rpc("get_job_pin_lock", { _job_id: id });
+        const row = Array.isArray(lock) ? lock[0] : lock;
+        if (row) setPinLock({ failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null });
+        else setPinLock(null);
+      }
     }
 
     setLoading(false);
