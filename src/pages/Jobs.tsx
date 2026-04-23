@@ -82,8 +82,13 @@ export default function Jobs() {
 
     if (isUnder18) {
       const { error: rerr } = await supabase.rpc("request_job_approval", { _job_id: jobId });
-      if (rerr) toast.error(rerr.message);
-      else {
+      if (rerr) {
+        if (/No confirmed guardian/i.test(rerr.message)) {
+          toast.warning("Link a guardian from your Profile before they can approve jobs.");
+        } else {
+          toast.error(rerr.message);
+        }
+      } else {
         toast.info("Your guardian needs to approve this in their app.");
         setApprovals((a) => ({ ...a, [jobId]: "pending" }));
       }
