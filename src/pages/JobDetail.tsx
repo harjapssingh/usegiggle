@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, Check, Lock, ShieldCheck, AlertCircle, GraduationCap } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Check, Lock, ShieldCheck, ShieldAlert, AlertCircle, GraduationCap, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
