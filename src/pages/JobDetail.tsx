@@ -191,10 +191,16 @@ export default function JobDetail() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Helper confirmed! Share the start PIN when they arrive.");
-    load();
   };
 
-  const submitPin = async () => {
+  const refreshLock = async () => {
+    if (!job) return;
+    const { data } = await supabase.rpc("get_job_pin_lock", { _job_id: job.id });
+    const row = Array.isArray(data) ? data[0] : data;
+    setPinLock(row ? { failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null } : null);
+  };
+
+
     if (!job || pinInput.length !== 4) return;
     setBusy(true);
     try {
