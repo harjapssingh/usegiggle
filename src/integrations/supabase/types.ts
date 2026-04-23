@@ -257,6 +257,33 @@ export type Database = {
           },
         ]
       }
+      job_pin_attempts: {
+        Row: {
+          failed_attempts: number
+          helper_id: string
+          id: string
+          job_id: string
+          locked_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          failed_attempts?: number
+          helper_id: string
+          id?: string
+          job_id: string
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          failed_attempts?: number
+          helper_id?: string
+          id?: string
+          job_id?: string
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           budget: number
@@ -461,6 +488,13 @@ export type Database = {
           per_job_rate: number
           rate_type: string
           school_name: string
+        }[]
+      }
+      get_job_pin_lock: {
+        Args: { _job_id: string }
+        Returns: {
+          failed_attempts: number
+          locked_until: string
         }[]
       }
       get_job_pins: {

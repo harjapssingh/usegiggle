@@ -82,7 +82,7 @@ export default function GuardianHome() {
       {loading ? (
         <div className="grid gap-3">{[0,1].map((i) => <Skeleton key={i} className="h-28 rounded-2xl" />)}</div>
       ) : items.length === 0 ? (
-        <div className="card-soft p-10 text-center">
+        <div className="card-soft p-10 text-center animate-fade-in">
           <div className="h-14 w-14 rounded-2xl bg-primary-soft text-primary mx-auto mb-3 flex items-center justify-center">
             <Check className="h-7 w-7" />
           </div>
@@ -90,34 +90,52 @@ export default function GuardianHome() {
           <p className="text-sm text-muted-foreground">No pending requests right now.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {items.map((it, i) => {
-            const Icon = it.kind === "link" ? UserPlus : (it.job_category ? categoryIcon(it.job_category) : Briefcase);
-            return (
-              <button
-                key={`${it.kind}-${it.helper_id}-${it.job_id ?? "x"}-${i}`}
-                onClick={() => { setActive(it); setPin(""); }}
-                className="card-soft card-soft-hover p-5 w-full text-left flex items-start gap-4"
-              >
-                <div className="h-12 w-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
-                  <Icon className="h-5 w-5" />
+        <div className="space-y-6">
+          {Object.entries(
+            items.reduce<Record<string, PendingItem[]>>((acc, it) => {
+              (acc[it.helper_name] ||= []).push(it);
+              return acc;
+            }, {})
+          ).map(([helperName, group]) => (
+            <section key={helperName} className="space-y-2 animate-fade-up">
+              <div className="flex items-center gap-2 px-1">
+                <div className="h-7 w-7 rounded-full bg-secondary flex items-center justify-center font-display text-xs">
+                  {helperName[0]}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {it.kind === "link" ? "New helper link" : (it.job_category ? categoryLabel(it.job_category) : "Job")}
-                  </p>
-                  <p className="font-semibold leading-snug">
-                    {it.kind === "link"
-                      ? `${it.helper_name} wants to link to you.`
-                      : `${it.helper_name} wants approval for: ${it.job_description}`}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(it.requested_at).toLocaleString()}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
+                <p className="text-sm font-medium">{helperName}</p>
+                <span className="text-xs text-muted-foreground">· {group.length} pending</span>
+              </div>
+              <div className="space-y-2">
+                {group.map((it, i) => {
+                  const Icon = it.kind === "link" ? UserPlus : (it.job_category ? categoryIcon(it.job_category) : Briefcase);
+                  return (
+                    <button
+                      key={`${it.kind}-${it.helper_id}-${it.job_id ?? "x"}-${i}`}
+                      onClick={() => { setActive(it); setPin(""); }}
+                      className="card-soft card-soft-hover p-5 w-full text-left flex items-start gap-4 transition-transform active:scale-[0.99]"
+                    >
+                      <div className="h-12 w-12 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
+                        <Icon className="h-5 w-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {it.kind === "link" ? "New helper link" : (it.job_category ? categoryLabel(it.job_category) : "Job")}
+                        </p>
+                        <p className="font-semibold leading-snug">
+                          {it.kind === "link"
+                            ? `${it.helper_name} wants to link to you.`
+                            : `Approval for: ${it.job_description}`}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(it.requested_at).toLocaleString()}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       )}
 

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, Check, Lock, ShieldCheck, AlertCircle, GraduationCap } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, Check, Lock, ShieldCheck, ShieldAlert, AlertCircle, GraduationCap, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,9 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [pinInput, setPinInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [guardianStatus, setGuardianStatus] = useState<{ approved: boolean; approveUrl?: string } | null>(null);
+  const [guardianStatus, setGuardianStatus] = useState<{ approved: boolean } | null>(null);
+  const [pinLock, setPinLock] = useState<{ failed_attempts: number; locked_until: string | null } | null>(null);
+  const [, setNowTick] = useState(0);
 
   const isHomeowner = !!user && job?.homeowner_id === user.id;
   const isAssignedHelper = !!user && job?.helper_id === user.id;
@@ -140,12 +142,27 @@ export default function JobDetail() {
         .eq("job_id", id).eq("helper_id", user.id)
         .maybeSingle();
       if (ga) setGuardianStatus({ approved: ga.approved });
+
+      // Load PIN lockout state if helper is assigned
+      if ((jobData as any).helper_id === user.id) {
+        const { data: lock } = await supabase.rpc("get_job_pin_lock", { _job_id: id });
+        const row = Array.isArray(lock) ? lock[0] : lock;
+        if (row) setPinLock({ failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null });
+        else setPinLock(null);
+      }
     }
 
     setLoading(false);
   }, [id, user, profile]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Tick once a second so the lockout countdown updates live.
+  useEffect(() => {
+    if (!pinLock?.locked_until) return;
+    const t = setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [pinLock?.locked_until]);
 
   // Realtime: refresh when job changes (status). PIN columns are not exposed,
   // so on any change we re-load to also refresh PINs for the homeowner.
@@ -174,23 +191,40 @@ export default function JobDetail() {
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Helper confirmed! Share the start PIN when they arrive.");
-    load();
   };
 
+  const refreshLock = async () => {
+    if (!job) return;
+    const { data } = await supabase.rpc("get_job_pin_lock", { _job_id: job.id });
+    const row = Array.isArray(data) ? data[0] : data;
+    setPinLock(row ? { failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null } : null);
+  };
   const submitPin = async () => {
     if (!job || pinInput.length !== 4) return;
     setBusy(true);
     try {
-      if (job.status === "matched") {
-        const { data, error } = await supabase.rpc("verify_start_pin", { _job_id: job.id, _pin: pinInput });
-        if (error) { toast.error("Couldn't verify PIN. Try again."); return; }
-        if (data === true) { toast.success("Job started!"); setPinInput(""); }
-        else toast.error("That PIN doesn't match.");
-      } else if (job.status === "in_progress") {
-        const { data, error } = await supabase.rpc("verify_completion_pin", { _job_id: job.id, _pin: pinInput });
-        if (error) { toast.error("Couldn't verify PIN. Try again."); return; }
-        if (data === true) { toast.success("Job complete! 🎉"); setPinInput(""); }
-        else toast.error("That PIN doesn't match.");
+      const fn = job.status === "matched" ? "verify_start_pin" : job.status === "in_progress" ? "verify_completion_pin" : null;
+      if (!fn) return;
+      const { data, error } = await supabase.rpc(fn, { _job_id: job.id, _pin: pinInput });
+      if (error) {
+        const m = /Locked until (.+)/.exec(error.message ?? "");
+        if (m) {
+          setPinLock({ failed_attempts: 5, locked_until: m[1] });
+          toast.error("Too many wrong tries. Locked for 15 minutes.");
+        } else {
+          toast.error("Couldn't verify PIN. Try again.");
+        }
+        setPinInput("");
+        return;
+      }
+      if (data === true) {
+        toast.success(fn === "verify_start_pin" ? "Job started!" : "Job complete! 🎉");
+        setPinInput("");
+        setPinLock(null);
+      } else {
+        await refreshLock();
+        setPinInput("");
+        toast.error("That PIN doesn't match.");
       }
     } finally {
       setBusy(false);
@@ -308,6 +342,7 @@ export default function JobDetail() {
           setPinInput={setPinInput}
           submitPin={submitPin}
           busy={busy}
+          pinLock={pinLock}
         />
       )}
 
@@ -332,7 +367,7 @@ export default function JobDetail() {
   );
 }
 
-function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin, busy }: {
+function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin, busy, pinLock }: {
   job: Job;
   isHomeowner: boolean;
   isHelper: boolean;
@@ -340,9 +375,17 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
   setPinInput: (v: string) => void;
   submitPin: () => void;
   busy: boolean;
+  pinLock: { failed_attempts: number; locked_until: string | null } | null;
 }) {
   const phase = job.status === "matched" ? "start" : "complete";
   const pinForPhase = phase === "start" ? job.start_pin : job.completion_pin;
+
+  const lockedUntilMs = pinLock?.locked_until ? new Date(pinLock.locked_until).getTime() : 0;
+  const isLocked = lockedUntilMs > Date.now();
+  const remaining = isLocked ? Math.max(0, lockedUntilMs - Date.now()) : 0;
+  const remainingMin = Math.floor(remaining / 60000);
+  const remainingSec = Math.floor((remaining % 60000) / 1000);
+  const triesLeft = Math.max(0, 5 - (pinLock?.failed_attempts ?? 0));
 
   return (
     <div className="card-soft p-6 bg-accent-soft/30 animate-slide-up">
@@ -368,22 +411,41 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
 
       {isHelper && (
         <div className="space-y-4 animate-fade-in">
-          <p className="text-sm text-center text-muted-foreground">
-            {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
-          </p>
-          <div className="flex justify-center">
-            <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
-              <InputOTPGroup>
-                <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
-                <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
-                <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
-                <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
-              </InputOTPGroup>
-            </InputOTP>
-          </div>
-          <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
-            {phase === "start" ? "Start job" : "Mark complete"}
-          </Button>
+          {isLocked ? (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-5 text-center animate-fade-in">
+              <Timer className="h-6 w-6 text-destructive mx-auto mb-2" />
+              <p className="font-semibold text-destructive">Too many wrong tries</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Try again in <span className="font-mono font-semibold text-foreground tabular-nums">
+                  {remainingMin}:{String(remainingSec).padStart(2, "0")}
+                </span>
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-center text-muted-foreground">
+                {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
+              </p>
+              <div className="flex justify-center">
+                <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                    <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
+                    <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
+                    <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              {pinLock && pinLock.failed_attempts > 0 && (
+                <p className="text-xs text-center text-destructive animate-fade-in">
+                  Wrong PIN. {triesLeft} {triesLeft === 1 ? "try" : "tries"} left before a 15-minute lock.
+                </p>
+              )}
+              <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
+                {phase === "start" ? "Start job" : "Mark complete"}
+              </Button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -391,18 +453,20 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
 }
 
 function HelperGuardianBlock({ guardianStatus, onRequest, busy }: {
-  guardianStatus: { approved: boolean; approveUrl?: string } | null;
+  guardianStatus: { approved: boolean } | null;
   onRequest: () => void;
   busy: boolean;
 }) {
   if (!guardianStatus) {
     return (
-      <div className="card-soft p-5 bg-accent-soft/30">
+      <div className="card-soft p-5 bg-accent-soft/30 animate-slide-up">
         <div className="flex items-start gap-3">
           <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-medium">Guardian approval needed</p>
-            <p className="text-sm text-muted-foreground mb-3">Since you're under 18, we'll send your guardian a quick approval link before the homeowner sees your interest.</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              Since you're under 18, your guardian has to approve this specific job in their app before the homeowner sees your interest.
+            </p>
             <Button onClick={onRequest} disabled={busy} className="rounded-xl" size="sm">Request guardian approval</Button>
           </div>
         </div>
@@ -411,20 +475,22 @@ function HelperGuardianBlock({ guardianStatus, onRequest, busy }: {
   }
   if (guardianStatus.approved) {
     return (
-      <div className="card-soft p-4 bg-primary-soft/40 flex items-center gap-2 text-sm">
-        <ShieldCheck className="h-4 w-4 text-primary" /> Guardian has approved you for this job.
+      <div className="card-soft p-4 bg-primary-soft/40 flex items-center gap-2 text-sm animate-fade-in">
+        <ShieldCheck className="h-4 w-4 text-primary" /> Your guardian has approved you for this job.
       </div>
     );
   }
   return (
-    <div className="card-soft p-5 bg-muted/40">
-      <p className="font-medium mb-1">Waiting on guardian approval</p>
-      {guardianStatus.approveUrl && (
-        <>
-          <p className="text-sm text-muted-foreground mb-2">Share this link with your guardian if they didn't get the email:</p>
-          <code className="block text-xs bg-card p-2 rounded-lg break-all">{guardianStatus.approveUrl}</code>
-        </>
-      )}
+    <div className="card-soft p-5 bg-muted/40 animate-fade-in">
+      <div className="flex items-start gap-3">
+        <ShieldAlert className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="font-medium">Waiting on guardian approval</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            We've sent the request. Your guardian needs to open their Giggle app and confirm with their PIN.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
