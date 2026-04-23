@@ -157,6 +157,13 @@ export default function JobDetail() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Tick once a second so the lockout countdown updates live.
+  useEffect(() => {
+    if (!pinLock?.locked_until) return;
+    const t = setInterval(() => setNowTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [pinLock?.locked_until]);
+
   // Realtime: refresh when job changes (status). PIN columns are not exposed,
   // so on any change we re-load to also refresh PINs for the homeowner.
   useEffect(() => {
