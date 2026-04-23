@@ -53,7 +53,9 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true);
   const [pinInput, setPinInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [guardianStatus, setGuardianStatus] = useState<{ approved: boolean; approveUrl?: string } | null>(null);
+  const [guardianStatus, setGuardianStatus] = useState<{ approved: boolean } | null>(null);
+  const [pinLock, setPinLock] = useState<{ failed_attempts: number; locked_until: string | null } | null>(null);
+  const [, setNowTick] = useState(0);
 
   const isHomeowner = !!user && job?.homeowner_id === user.id;
   const isAssignedHelper = !!user && job?.helper_id === user.id;
