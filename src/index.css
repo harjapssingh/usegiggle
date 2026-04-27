@@ -3,82 +3,82 @@
 @tailwind utilities;
 
 /* Giggle design system — warm community bulletin board.
-   All colors HSL. Sage green + warm amber on cream. */
+   All colors HSL. Deep teal (from logo) + warm amber on cream. */
 
 @layer base {
   :root {
-    /* Cream backgrounds, never pure white */
-    --background: 38 44% 96%;
-    --foreground: 150 18% 14%;
+    /* Cream backgrounds, matching the logo's cream surround */
+    --background: 40 38% 95%;
+    --foreground: 178 38% 12%;
 
-    --card: 38 50% 98%;
-    --card-foreground: 150 18% 14%;
+    --card: 40 50% 98%;
+    --card-foreground: 178 38% 12%;
 
-    --popover: 38 50% 98%;
-    --popover-foreground: 150 18% 14%;
+    --popover: 40 50% 98%;
+    --popover-foreground: 178 38% 12%;
 
-    /* Soft sage green */
-    --primary: 145 32% 38%;
-    --primary-foreground: 38 50% 98%;
-    --primary-soft: 145 28% 88%;
+    /* Deep teal — sampled from the hammer-i logo */
+    --primary: 176 48% 22%;
+    --primary-foreground: 40 50% 98%;
+    --primary-soft: 176 28% 86%;
 
     /* Warm amber accent */
     --accent: 32 78% 56%;
-    --accent-foreground: 30 35% 14%;
+    --accent-foreground: 178 38% 12%;
     --accent-soft: 36 78% 92%;
 
-    --secondary: 38 32% 90%;
-    --secondary-foreground: 150 18% 14%;
+    --secondary: 40 28% 90%;
+    --secondary-foreground: 178 38% 12%;
 
-    --muted: 38 28% 92%;
-    --muted-foreground: 150 10% 40%;
+    --muted: 40 24% 92%;
+    --muted-foreground: 178 12% 36%;
 
     --destructive: 0 65% 50%;
-    --destructive-foreground: 38 50% 98%;
+    --destructive-foreground: 40 50% 98%;
 
-    --border: 38 22% 86%;
-    --input: 38 22% 86%;
-    --ring: 145 32% 38%;
+    --border: 40 22% 86%;
+    --input: 40 22% 86%;
+    --ring: 176 48% 22%;
 
     --radius: 0.875rem;
 
     /* Subtle surface elevation (no harsh shadows) */
-    --elevation-sm: 0 1px 2px 0 hsl(150 18% 14% / 0.04);
-    --elevation-md: 0 4px 12px -4px hsl(150 18% 14% / 0.08);
-    --elevation-lg: 0 12px 32px -8px hsl(150 18% 14% / 0.10);
+    --elevation-sm: 0 1px 2px 0 hsl(178 38% 12% / 0.04);
+    --elevation-md: 0 4px 12px -4px hsl(178 38% 12% / 0.08);
+    --elevation-lg: 0 12px 32px -8px hsl(178 38% 12% / 0.10);
 
-    --sidebar-background: 38 44% 96%;
-    --sidebar-foreground: 150 18% 14%;
-    --sidebar-primary: 145 32% 38%;
-    --sidebar-primary-foreground: 38 50% 98%;
-    --sidebar-accent: 38 28% 92%;
-    --sidebar-accent-foreground: 150 18% 14%;
-    --sidebar-border: 38 22% 86%;
-    --sidebar-ring: 145 32% 38%;
+    --sidebar-background: 40 38% 95%;
+    --sidebar-foreground: 178 38% 12%;
+    --sidebar-primary: 176 48% 22%;
+    --sidebar-primary-foreground: 40 50% 98%;
+    --sidebar-accent: 40 24% 92%;
+    --sidebar-accent-foreground: 178 38% 12%;
+    --sidebar-border: 40 22% 86%;
+    --sidebar-ring: 176 48% 22%;
   }
 
   .dark {
-    --background: 150 14% 10%;
-    --foreground: 38 44% 96%;
-    --card: 150 14% 12%;
-    --card-foreground: 38 44% 96%;
-    --popover: 150 14% 12%;
-    --popover-foreground: 38 44% 96%;
-    --primary: 145 38% 58%;
-    --primary-foreground: 150 14% 10%;
-    --primary-soft: 145 24% 22%;
+    --background: 178 24% 8%;
+    --foreground: 40 38% 95%;
+    --card: 178 22% 12%;
+    --card-foreground: 40 38% 95%;
+    --popover: 178 22% 12%;
+    --popover-foreground: 40 38% 95%;
+    --primary: 176 42% 60%;
+    --primary-foreground: 178 24% 8%;
+    --primary-soft: 176 28% 22%;
     --accent: 32 78% 60%;
-    --accent-foreground: 150 14% 10%;
+    --accent-foreground: 178 24% 8%;
     --accent-soft: 32 30% 22%;
-    --secondary: 150 10% 18%;
-    --secondary-foreground: 38 44% 96%;
-    --muted: 150 10% 18%;
-    --muted-foreground: 38 16% 70%;
+    --secondary: 178 12% 18%;
+    --secondary-foreground: 40 38% 95%;
+    --muted: 178 12% 18%;
+    --muted-foreground: 40 16% 70%;
     --destructive: 0 62% 45%;
-    --destructive-foreground: 38 44% 96%;
-    --border: 150 10% 20%;
-    --input: 150 10% 20%;
-    --ring: 145 38% 58%;
+    --destructive-foreground: 40 38% 95%;
+    --border: 178 12% 20%;
+    --input: 178 12% 20%;
+    --ring: 176 42% 60%;
   }
 }
 
@@ -110,7 +110,7 @@
   .bg-paper {
     background-color: hsl(var(--background));
     background-image:
-      radial-gradient(hsl(150 18% 14% / 0.025) 1px, transparent 1px);
+      radial-gradient(hsl(178 38% 12% / 0.025) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 }
