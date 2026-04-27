@@ -504,6 +504,13 @@ export type Database = {
           start_pin: string
         }[]
       }
+      get_job_pins_for_helper: {
+        Args: { _job_id: string }
+        Returns: {
+          completion_pin: string
+          start_pin: string
+        }[]
+      }
       guardian_setup: { Args: { _pin: string }; Returns: string }
       is_job_participant: {
         Args: { _job_id: string; _user_id: string }
