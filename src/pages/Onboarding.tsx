@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, Heart, HandHeart, Sprout, ShieldCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Heart, HandHeart, ShieldCheck } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -146,12 +147,7 @@ export default function Onboarding() {
         <button onClick={back} disabled={step === 0} className="flex items-center gap-2 text-sm font-medium disabled:opacity-30">
           <ArrowLeft className="h-4 w-4" /> Back
         </button>
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
-            <Sprout className="h-4 w-4" />
-          </div>
-          <span className="font-display text-xl">Giggle</span>
-        </div>
+        <Logo className="h-9 w-9" wordmarkClassName="text-xl" />
         <div className="w-16 text-right text-xs text-muted-foreground">{step + 1} / {steps.length}</div>
       </header>
 
