@@ -49,7 +49,7 @@ export default function Jobs() {
       const map = new Map<string, Job>();
       (assigned as Job[] ?? []).forEach((j) => map.set(j.id, j));
       if (interestIds.size && user) {
-        const { data: ij } = await supabase.from("jobs").select("*").in("id", Array.from(interestIds));
+        const { data: ij } = await supabase.from("jobs").select(JOB_COLS).in("id", Array.from(interestIds));
         (ij as Job[] ?? []).forEach((j) => map.set(j.id, j));
       }
       const mine = Array.from(map.values());
