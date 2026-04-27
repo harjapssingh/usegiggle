@@ -38,22 +38,24 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
+      // Explicit columns — PIN fields are not selectable from the table.
+      const JOB_COLS = "id, category, description, budget, status, neighbourhood, scheduled_date, scheduled_time_window, homeowner_id, helper_id, created_at";
       if (isHomeowner) {
-        const { data } = await supabase.from("jobs").select("*")
+        const { data } = await supabase.from("jobs").select(JOB_COLS)
           .eq("homeowner_id", profile!.id)
           .order("created_at", { ascending: false }).limit(20);
         setJobs((data as Job[]) ?? []);
       } else {
         // Helper: open jobs feed + their own activity (interested or assigned)
         const [{ data: openJobs }, { data: interests }, { data: assigned }] = await Promise.all([
-          supabase.from("jobs").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(10),
+          supabase.from("jobs").select(JOB_COLS).eq("status", "open").order("created_at", { ascending: false }).limit(10),
           supabase.from("job_interests").select("job_id").eq("helper_id", profile!.id),
-          supabase.from("jobs").select("*").eq("helper_id", profile!.id).order("created_at", { ascending: false }),
+          supabase.from("jobs").select(JOB_COLS).eq("helper_id", profile!.id).order("created_at", { ascending: false }),
         ]);
         const interestIds = (interests ?? []).map((r: any) => r.job_id);
         let interestJobs: Job[] = [];
         if (interestIds.length) {
-          const { data: ij } = await supabase.from("jobs").select("*").in("id", interestIds);
+          const { data: ij } = await supabase.from("jobs").select(JOB_COLS).in("id", interestIds);
           interestJobs = (ij as Job[]) ?? [];
         }
         // Merge assigned + interested, dedupe by id
