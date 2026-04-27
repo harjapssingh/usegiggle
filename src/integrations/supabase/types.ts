@@ -49,6 +49,27 @@ export type Database = {
           },
         ]
       }
+      guardian_link_attempts: {
+        Row: {
+          failed_attempts: number
+          helper_id: string
+          locked_until: string | null
+          updated_at: string
+        }
+        Insert: {
+          failed_attempts?: number
+          helper_id: string
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Update: {
+          failed_attempts?: number
+          helper_id?: string
+          locked_until?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guardian_profiles: {
         Row: {
           created_at: string
