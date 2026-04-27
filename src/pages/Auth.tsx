@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { Sprout, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { Logo } from "@/components/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -56,12 +57,7 @@ export default function Auth() {
           <ArrowLeft className="h-4 w-4" />
           <span className="text-sm font-medium">Back</span>
         </Link>
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
-            <Sprout className="h-4 w-4" />
-          </div>
-          <span className="font-display text-xl">Giggle</span>
-        </div>
+        <Logo className="h-9 w-9" wordmarkClassName="text-xl" />
       </header>
 
       <div className="flex-1 flex items-center justify-center px-5 py-10">

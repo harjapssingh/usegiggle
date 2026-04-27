@@ -1,18 +1,14 @@
 import { Link } from "react-router-dom";
 import { Sprout, Heart, Shield, Sun, ArrowRight, Snowflake, Leaf, ShoppingBag, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/Logo";
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-paper">
       {/* Nav */}
       <header className="container flex items-center justify-between py-5">
-        <div className="flex items-center gap-2">
-          <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground">
-            <Sprout className="h-5 w-5" />
-          </div>
-          <span className="font-display text-2xl">Giggle</span>
-        </div>
+        <Logo />
         <div className="flex items-center gap-2">
           <Link to="/auth"><Button variant="ghost" className="rounded-xl">Sign in</Button></Link>
           <Link to="/auth?mode=signup"><Button className="rounded-xl">Get started</Button></Link>

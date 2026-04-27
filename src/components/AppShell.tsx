@@ -1,7 +1,8 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { Home, PlusCircle, Users, User, LogOut, Sprout } from "lucide-react";
+import { Home, PlusCircle, Users, User, LogOut } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
@@ -33,11 +34,8 @@ export function AppShell() {
     <div className="min-h-screen bg-paper flex flex-col md:flex-row">
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-64 lg:w-72 shrink-0 border-r border-border bg-card/60 backdrop-blur-sm flex-col p-6 sticky top-0 h-screen">
-        <div className="flex items-center gap-2 mb-10">
-          <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center text-primary-foreground">
-            <Sprout className="h-5 w-5" />
-          </div>
-          <span className="font-display text-2xl">Giggle</span>
+        <div className="mb-10">
+          <Logo />
         </div>
         <nav className="flex flex-col gap-1 flex-1">
           {navItems.map((item) => (
@@ -72,12 +70,7 @@ export function AppShell() {
       <main className="flex-1 pb-24 md:pb-10">
         {/* Mobile top bar */}
         <header className="md:hidden sticky top-0 z-30 bg-background/85 backdrop-blur-md border-b border-border px-5 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
-              <Sprout className="h-4 w-4" />
-            </div>
-            <span className="font-display text-xl">Giggle</span>
-          </div>
+          <Logo className="h-8 w-8" wordmarkClassName="text-xl" />
           <Button variant="ghost" size="sm" onClick={handleSignOut} className="text-muted-foreground">
             <LogOut className="h-4 w-4" />
           </Button>
