@@ -33,10 +33,12 @@ export default function Jobs() {
 
   useEffect(() => {
     const fetch = async () => {
+      // Explicit columns — PIN fields are not selectable from the table; assigned helper retrieves via RPC.
+      const JOB_COLS = "id, category, description, budget, status, neighbourhood, scheduled_date, scheduled_time_window, homeowner_id, helper_id, created_at";
       const [{ data: jobsData }, { data: myInt }, { data: assigned }, { data: hp }] = await Promise.all([
-        supabase.from("jobs").select("*").eq("status", "open").order("created_at", { ascending: false }),
+        supabase.from("jobs").select(JOB_COLS).eq("status", "open").order("created_at", { ascending: false }),
         user ? supabase.from("job_interests").select("job_id").eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
-        user ? supabase.from("jobs").select("*").eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
+        user ? supabase.from("jobs").select(JOB_COLS).eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
         user ? supabase.from("helper_profiles").select("is_under_18").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null as any }),
       ]);
       const interestIds = new Set((myInt ?? []).map((r: any) => r.job_id));
