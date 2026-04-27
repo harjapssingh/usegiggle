@@ -8,9 +8,7 @@ interface LogoProps {
 }
 
 /**
- * Giggle brand mark — hammer-i logo (deep teal on cream).
- * The PNG is transparent-friendly via `mix-blend-multiply` so the cream square
- * blends into our cream background without a visible bounding box.
+ * Giggle brand mark — hammer-i logo (deep teal, transparent background).
  */
 export function Logo({ className, showWordmark = true, wordmarkClassName }: LogoProps) {
   return (
@@ -18,10 +16,7 @@ export function Logo({ className, showWordmark = true, wordmarkClassName }: Logo
       <img
         src={logo}
         alt="Giggle logo"
-        className={cn(
-          "h-9 w-9 object-contain mix-blend-multiply select-none",
-          className,
-        )}
+        className={cn("h-9 w-9 object-contain select-none", className)}
         draggable={false}
       />
       {showWordmark && (
