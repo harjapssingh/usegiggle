@@ -19,20 +19,25 @@ interface PendingItem {
 }
 
 export default function GuardianHome() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<PendingItem | null>(null);
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pinMissing, setPinMissing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.rpc("list_guardian_pending");
     if (error) toast.error("Couldn't load pending items.");
     setItems(((data as PendingItem[]) ?? []));
+    if (user) {
+      const { data: gp } = await supabase.from("guardian_profiles").select("id").eq("id", user.id).maybeSingle();
+      setPinMissing(!gp);
+    }
     setLoading(false);
-  }, []);
+  }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
