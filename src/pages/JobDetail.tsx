@@ -180,17 +180,14 @@ export default function JobDetail() {
   const confirmHelper = async (helperId: string) => {
     if (!job) return;
     setBusy(true);
-    const { data: pinStart } = await supabase.rpc("generate_pin");
-    const { data: pinEnd } = await supabase.rpc("generate_pin");
-    const { error } = await supabase.from("jobs").update({
-      helper_id: helperId,
-      status: "matched",
-      start_pin: (pinStart as unknown as string) ?? `${Math.floor(1000 + Math.random()*9000)}`,
-      completion_pin: (pinEnd as unknown as string) ?? `${Math.floor(1000 + Math.random()*9000)}`,
-    }).eq("id", job.id);
+    const { error } = await supabase.rpc("assign_helper", {
+      _job_id: job.id,
+      _helper_id: helperId,
+    });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Helper confirmed! Share the start PIN when they arrive.");
+    await load();
   };
 
   const refreshLock = async () => {
