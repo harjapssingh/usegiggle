@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, Loader2, UserPlus, Briefcase, Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShieldCheck, Loader2, UserPlus, Briefcase, Check, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
@@ -19,20 +20,25 @@ interface PendingItem {
 }
 
 export default function GuardianHome() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const [items, setItems] = useState<PendingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [active, setActive] = useState<PendingItem | null>(null);
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
+  const [pinMissing, setPinMissing] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase.rpc("list_guardian_pending");
     if (error) toast.error("Couldn't load pending items.");
     setItems(((data as PendingItem[]) ?? []));
+    if (user) {
+      const { data: gp } = await supabase.from("guardian_profiles").select("id").eq("id", user.id).maybeSingle();
+      setPinMissing(!gp);
+    }
     setLoading(false);
-  }, []);
+  }, [user]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -67,15 +73,30 @@ export default function GuardianHome() {
         <h1 className="font-display text-3xl md:text-4xl">{profile?.full_name?.split(" ")[0]}</h1>
       </div>
 
-      <div className="card-soft p-5 bg-primary-soft/30 flex items-start gap-3">
-        <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-        <div>
-          <p className="font-medium">You're keeping your child safe.</p>
-          <p className="text-sm text-muted-foreground">
-            Each job request below needs your 4-digit PIN before your child can be confirmed.
-          </p>
+      {pinMissing ? (
+        <div className="card-soft p-5 bg-destructive/10 border border-destructive/20 flex items-start gap-3 animate-fade-in">
+          <KeyRound className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium">Set your guardian PIN</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              Before you can approve jobs or helper links, you need to set a 4-digit PIN.
+            </p>
+            <Button asChild size="sm" className="rounded-xl">
+              <Link to="/app/profile">Set PIN now</Link>
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="card-soft p-5 bg-primary-soft/30 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">You're keeping your child safe.</p>
+            <p className="text-sm text-muted-foreground">
+              Each job request below needs your 4-digit PIN before your child can be confirmed.
+            </p>
+          </div>
+        </div>
+      )}
 
       <h2 className="font-display text-xl">Needs your approval</h2>
 
