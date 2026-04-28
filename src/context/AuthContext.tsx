@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     setProfile((data as Profile) ?? null);
     setProfileChecked(true);
+    setLoading(false);
   }, []);
 
   const refreshProfile = useCallback(async () => {
@@ -57,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setProfile(null);
         setProfileChecked(true);
+        setLoading(false);
       }
     });
 
