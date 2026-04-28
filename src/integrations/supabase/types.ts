@@ -305,12 +305,35 @@ export type Database = {
         }
         Relationships: []
       }
+      job_pins: {
+        Row: {
+          completion_pin: string
+          created_at: string
+          job_id: string
+          start_pin: string
+          updated_at: string
+        }
+        Insert: {
+          completion_pin: string
+          created_at?: string
+          job_id: string
+          start_pin: string
+          updated_at?: string
+        }
+        Update: {
+          completion_pin?: string
+          created_at?: string
+          job_id?: string
+          start_pin?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           budget: number
           category: Database["public"]["Enums"]["task_category"]
           completed_at: string | null
-          completion_pin: string | null
           created_at: string
           description: string
           helper_id: string | null
@@ -319,7 +342,6 @@ export type Database = {
           neighbourhood: string | null
           scheduled_date: string | null
           scheduled_time_window: string | null
-          start_pin: string | null
           started_at: string | null
           status: Database["public"]["Enums"]["job_status"]
           updated_at: string
@@ -328,7 +350,6 @@ export type Database = {
           budget: number
           category: Database["public"]["Enums"]["task_category"]
           completed_at?: string | null
-          completion_pin?: string | null
           created_at?: string
           description: string
           helper_id?: string | null
@@ -337,7 +358,6 @@ export type Database = {
           neighbourhood?: string | null
           scheduled_date?: string | null
           scheduled_time_window?: string | null
-          start_pin?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           updated_at?: string
@@ -346,7 +366,6 @@ export type Database = {
           budget?: number
           category?: Database["public"]["Enums"]["task_category"]
           completed_at?: string | null
-          completion_pin?: string | null
           created_at?: string
           description?: string
           helper_id?: string | null
@@ -355,7 +374,6 @@ export type Database = {
           neighbourhood?: string | null
           scheduled_date?: string | null
           scheduled_time_window?: string | null
-          start_pin?: string | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["job_status"]
           updated_at?: string
