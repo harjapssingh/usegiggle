@@ -89,12 +89,13 @@ export default function Onboarding() {
   const handleFinish = async () => {
     if (!user || !role) return;
     try {
-      const { error: pErr } = await supabase.from("profiles").insert({
+      // Upsert so users can safely retry onboarding if a later step failed.
+      const { error: pErr } = await supabase.from("profiles").upsert({
         id: user.id,
         full_name: fullName.trim(),
         role,
         neighbourhood: role === "guardian" ? null : (neighbourhood.trim() || null),
-      });
+      }, { onConflict: "id" });
       if (pErr) throw pErr;
 
       if (role === "helper") {
