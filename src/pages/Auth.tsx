@@ -44,7 +44,14 @@ export default function Auth() {
         toast.success("Welcome back!");
       }
     } catch (err: any) {
-      toast.error(err?.message ?? "Something went wrong");
+      const message = String(err?.message ?? "Something went wrong");
+      if (message.toLowerCase().includes("failed to fetch")) {
+        toast.error("Couldn’t reach the login service. Turn off VPN/ad blockers or try another network, then retry.");
+      } else if (err?.code === "weak_password" || err?.error_code === "weak_password" || message.toLowerCase().includes("weak")) {
+        toast.error("Choose a stronger, less common password.");
+      } else {
+        toast.error(message);
+      }
     } finally {
       setSubmitting(false);
     }
