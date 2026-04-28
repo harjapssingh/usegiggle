@@ -23,6 +23,9 @@ export default function Profile() {
   // Guardian-side
   const [guardianCode, setGuardianCode] = useState<string | null>(null);
   const [linkedHelpers, setLinkedHelpers] = useState<Array<{ helper_id: string; full_name: string; confirmed: boolean }>>([]);
+  const [pinSetup, setPinSetup] = useState("");
+  const [pinSetupConfirm, setPinSetupConfirm] = useState("");
+  const [settingPin, setSettingPin] = useState(false);
 
   useEffect(() => {
     (async () => {
