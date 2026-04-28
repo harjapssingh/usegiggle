@@ -73,15 +73,30 @@ export default function GuardianHome() {
         <h1 className="font-display text-3xl md:text-4xl">{profile?.full_name?.split(" ")[0]}</h1>
       </div>
 
-      <div className="card-soft p-5 bg-primary-soft/30 flex items-start gap-3">
-        <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-        <div>
-          <p className="font-medium">You're keeping your child safe.</p>
-          <p className="text-sm text-muted-foreground">
-            Each job request below needs your 4-digit PIN before your child can be confirmed.
-          </p>
+      {pinMissing ? (
+        <div className="card-soft p-5 bg-destructive/10 border border-destructive/20 flex items-start gap-3 animate-fade-in">
+          <KeyRound className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium">Set your guardian PIN</p>
+            <p className="text-sm text-muted-foreground mb-3">
+              Before you can approve jobs or helper links, you need to set a 4-digit PIN.
+            </p>
+            <Button asChild size="sm" className="rounded-xl">
+              <Link to="/app/profile">Set PIN now</Link>
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="card-soft p-5 bg-primary-soft/30 flex items-start gap-3">
+          <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="font-medium">You're keeping your child safe.</p>
+            <p className="text-sm text-muted-foreground">
+              Each job request below needs your 4-digit PIN before your child can be confirmed.
+            </p>
+          </div>
+        </div>
+      )}
 
       <h2 className="font-display text-xl">Needs your approval</h2>
 
