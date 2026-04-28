@@ -188,8 +188,55 @@ export default function Profile() {
         </div>
       )}
 
+      {/* GUARDIAN: set PIN if missing */}
+      {profile?.role === "guardian" && !guardianCode && (
+        <div className="card-soft p-6 animate-slide-up">
+          <div className="flex items-center gap-2 mb-3">
+            <KeyRound className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-xl">Set your guardian PIN</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">
+            You'll enter this 4-digit PIN whenever you approve a job or a new helper link. Keep it private.
+          </p>
+          <div className="space-y-4">
+            <div>
+              <Label className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">New PIN</Label>
+              <InputOTP maxLength={4} value={pinSetup} onChange={setPinSetup}>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} className="h-12 w-12 text-xl font-display rounded-xl" />
+                  <InputOTPSlot index={1} className="h-12 w-12 text-xl font-display" />
+                  <InputOTPSlot index={2} className="h-12 w-12 text-xl font-display" />
+                  <InputOTPSlot index={3} className="h-12 w-12 text-xl font-display rounded-xl" />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            <div>
+              <Label className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">Confirm PIN</Label>
+              <InputOTP maxLength={4} value={pinSetupConfirm} onChange={setPinSetupConfirm}>
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} className="h-12 w-12 text-xl font-display rounded-xl" />
+                  <InputOTPSlot index={1} className="h-12 w-12 text-xl font-display" />
+                  <InputOTPSlot index={2} className="h-12 w-12 text-xl font-display" />
+                  <InputOTPSlot index={3} className="h-12 w-12 text-xl font-display rounded-xl" />
+                </InputOTPGroup>
+              </InputOTP>
+              {pinSetupConfirm.length === 4 && pinSetup !== pinSetupConfirm && (
+                <p className="text-xs text-destructive mt-1.5">PINs don't match.</p>
+              )}
+            </div>
+            <Button
+              onClick={setupGuardianPin}
+              disabled={settingPin || !/^\d{4}$/.test(pinSetup) || pinSetup !== pinSetupConfirm}
+              className="rounded-xl tap-target"
+            >
+              {settingPin ? "Saving…" : "Save PIN"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* GUARDIAN: share code & see linked helpers */}
-      {profile?.role === "guardian" && (
+      {profile?.role === "guardian" && guardianCode && (
         <div className="card-soft p-6 animate-slide-up">
           <div className="flex items-center gap-2 mb-3">
             <ShieldCheck className="h-5 w-5 text-primary" />
@@ -198,14 +245,12 @@ export default function Profile() {
           <p className="text-sm text-muted-foreground mb-4">
             Share this code with your child. They'll enter it in their Giggle account so requests come to you.
           </p>
-          {guardianCode && (
-            <div className="bg-card rounded-2xl p-5 flex items-center justify-between gap-3 mb-6">
-              <p className="font-display text-2xl tracking-[0.3em] text-primary">{guardianCode}</p>
-              <Button variant="outline" size="sm" onClick={copyCode} className="rounded-xl">
-                <Copy className="h-4 w-4" /> Copy
-              </Button>
-            </div>
-          )}
+          <div className="bg-card rounded-2xl p-5 flex items-center justify-between gap-3 mb-6">
+            <p className="font-display text-2xl tracking-[0.3em] text-primary">{guardianCode}</p>
+            <Button variant="outline" size="sm" onClick={copyCode} className="rounded-xl">
+              <Copy className="h-4 w-4" /> Copy
+            </Button>
+          </div>
 
           <h3 className="font-display text-lg mb-2">Linked helpers</h3>
           {linkedHelpers.length === 0 ? (
