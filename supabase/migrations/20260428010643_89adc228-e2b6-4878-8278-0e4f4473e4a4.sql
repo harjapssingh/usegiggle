@@ -1,0 +1,27 @@
+REVOKE EXECUTE ON FUNCTION public.get_job_pins(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_job_pins_for_helper(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_job_pin_lock(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.get_helper_for_job(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.is_job_participant(uuid, uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.request_job_approval(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.request_guardian_link(text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.guardian_setup(text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.verify_start_pin(uuid, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.verify_completion_pin(uuid, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.confirm_guardian_link(uuid, text) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.list_guardian_pending() FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.approve_job_with_pin(uuid, uuid, text) FROM PUBLIC, anon;
+
+GRANT EXECUTE ON FUNCTION public.get_job_pins(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_job_pins_for_helper(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_job_pin_lock(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.get_helper_for_job(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_job_participant(uuid, uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.request_job_approval(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.request_guardian_link(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.guardian_setup(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_start_pin(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_completion_pin(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.confirm_guardian_link(uuid, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.list_guardian_pending() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.approve_job_with_pin(uuid, uuid, text) TO authenticated;
