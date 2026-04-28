@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ShieldCheck, Loader2, UserPlus, Briefcase, Check } from "lucide-react";
+import { Link } from "react-router-dom";
+import { ShieldCheck, Loader2, UserPlus, Briefcase, Check, KeyRound } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
