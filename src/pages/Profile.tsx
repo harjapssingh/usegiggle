@@ -108,6 +108,17 @@ export default function Profile() {
     toast.success("Code copied!");
   };
 
+  const setupGuardianPin = async () => {
+    if (!/^\d{4}$/.test(pinSetup) || pinSetup !== pinSetupConfirm) return;
+    setSettingPin(true);
+    const { data, error } = await supabase.rpc("guardian_setup", { _pin: pinSetup });
+    setSettingPin(false);
+    if (error) return toast.error(error.message);
+    setGuardianCode((data as unknown as string) ?? null);
+    setPinSetup(""); setPinSetupConfirm("");
+    toast.success("PIN set. Your link code is ready to share.");
+  };
+
   return (
     <div className="max-w-xl space-y-6 animate-fade-up">
       <h1 className="font-display text-3xl md:text-4xl">Your profile</h1>
