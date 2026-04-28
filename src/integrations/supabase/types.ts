@@ -491,6 +491,13 @@ export type Database = {
         Args: { _helper_id: string; _job_id: string; _pin: string }
         Returns: boolean
       }
+      assign_helper: {
+        Args: { _helper_id: string; _job_id: string }
+        Returns: {
+          completion_pin: string
+          start_pin: string
+        }[]
+      }
       confirm_guardian_link: {
         Args: { _helper_id: string; _pin: string }
         Returns: boolean
