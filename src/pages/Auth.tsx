@@ -36,7 +36,7 @@ export default function Auth() {
           options: { emailRedirectTo: `${window.location.origin}/onboarding` },
         });
         if (error) throw error;
-        toast.success("Welcome to Giggle! Let's set up your profile.");
+        toast.success("Welcome to Giggle! Let's set up your profile.", { duration: 500 });
         toast.success("Check your email for a confirmation link!");
         // AuthContext will pick up the session; useEffect routes to /onboarding.
       } else {
