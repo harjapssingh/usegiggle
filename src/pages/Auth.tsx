@@ -33,7 +33,7 @@ export default function Auth() {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
           email, password,
-          options: { emailRedirectTo: `${window.location.origin}/onboarding` },
+          options: { emailRedirectTo: `https://usegiggle.vercel.app/onboarding` },
         });
         if (error) throw error;
         toast.success("Welcome to Giggle! Let's set up your profile.", { duration: 3500 });
