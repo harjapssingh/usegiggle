@@ -37,6 +37,7 @@ export default function Auth() {
         });
         if (error) throw error;
         toast.success("Welcome to Giggle! Let's set up your profile.");
+        toast.success("Check your email for a confirmation link!");
         // AuthContext will pick up the session; useEffect routes to /onboarding.
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
