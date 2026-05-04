@@ -41,7 +41,7 @@ export default function Jobs() {
         user ? supabase.from("jobs").select(JOB_COLS).eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
         user ? supabase.from("helper_profiles").select("is_under_18").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null as any }),
       ]);
-      const interestIds = new Set((myInt ?? []).map((r: any) => r.job_id));
+      const interestIds = new Set<string>((myInt ?? []).map((r: { job_id: string }) => r.job_id));
       setInterested(interestIds);
       setIsUnder18(!!hp?.is_under_18);
 
