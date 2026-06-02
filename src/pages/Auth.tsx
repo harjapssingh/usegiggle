@@ -26,32 +26,95 @@ export default function Auth() {
     }
   }, [user, profile, profileChecked, navigate]);
 
+  // Direct XHR fallback that bypasses the preview fetch proxy (which can block
+  // POST /auth/v1/token with "Failed to fetch" / "Load failed").
+  const xhrAuth = (path: string, body: any) =>
+    new Promise<any>((resolve, reject) => {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/${path}`;
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url, true);
+      xhr.setRequestHeader("Content-Type", "application/json");
+      xhr.setRequestHeader("apikey", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
+      xhr.setRequestHeader("Authorization", `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`);
+      xhr.onload = () => {
+        try {
+          const json = xhr.responseText ? JSON.parse(xhr.responseText) : {};
+          if (xhr.status >= 200 && xhr.status < 300) resolve(json);
+          else reject(new Error(json?.msg || json?.error_description || json?.error || `HTTP ${xhr.status}`));
+        } catch (e: any) {
+          reject(new Error(e?.message || "Unexpected response"));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error"));
+      xhr.send(JSON.stringify(body));
+    });
+
+  const fallbackSignIn = async () => {
+    const data = await xhrAuth("token?grant_type=password", { email, password });
+    if (data?.access_token && data?.refresh_token) {
+      await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+      return true;
+    }
+    throw new Error("No session returned");
+  };
+
+  const fallbackSignUp = async () => {
+    const data = await xhrAuth("signup", { email, password });
+    if (data?.access_token && data?.refresh_token) {
+      await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+      return true;
+    }
+    // Auto-confirm is on, but if no session returned, try signing in.
+    return await fallbackSignIn();
+  };
+
+  const isNetworkErr = (msg: string) => {
+    const m = msg.toLowerCase();
+    return m.includes("failed to fetch") || m.includes("load failed") || m.includes("networkerror") || m.includes("network error");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
       if (mode === "signup") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: `${window.location.origin}/onboarding` },
-        });
-        if (error) throw error;
+        try {
+          const { data, error } = await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: `${window.location.origin}/onboarding` },
+          });
+          if (error) throw error;
+          if (data.session) navigate("/onboarding", { replace: true });
+        } catch (err: any) {
+          if (!isNetworkErr(String(err?.message ?? ""))) throw err;
+          await fallbackSignUp();
+        }
         toast.success("Welcome to Giggle! Let's set up your profile.", { duration: 3500 });
-        if (data.session) navigate("/onboarding", { replace: true });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
+        try {
+          const { error } = await supabase.auth.signInWithPassword({ email, password });
+          if (error) throw error;
+        } catch (err: any) {
+          if (!isNetworkErr(String(err?.message ?? ""))) throw err;
+          await fallbackSignIn();
+        }
         toast.success("Welcome back!");
       }
     } catch (err: any) {
       const message = String(err?.message ?? "Something went wrong");
-      if (message.toLowerCase().includes("failed to fetch")) {
-        toast.error("Couldn’t reach the login service. Turn off VPN/ad blockers or try another network, then retry.");
-      } else if (message.toLowerCase().includes("email not confirmed")) {
+      if (message.toLowerCase().includes("email not confirmed")) {
         toast.error("This account still needs confirmation. Try creating a fresh account now that email confirmations are off.");
       } else if (err?.code === "weak_password" || err?.error_code === "weak_password" || message.toLowerCase().includes("weak")) {
         toast.error("Choose a stronger, less common password.");
+      } else if (isNetworkErr(message)) {
+        toast.error("Couldn’t reach the login service. Please try again in a moment.");
       } else {
         toast.error(message);
       }
