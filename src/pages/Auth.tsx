@@ -79,48 +79,9 @@ export default function Auth() {
     return m.includes("failed to fetch") || m.includes("load failed") || m.includes("networkerror") || m.includes("network error");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    try {
-      if (mode === "signup") {
-        try {
-          const { data, error } = await supabase.auth.signUp({
-            email,
-            password,
-            options: { emailRedirectTo: `${window.location.origin}/onboarding` },
-          });
-          if (error) throw error;
-          if (data.session) navigate("/onboarding", { replace: true });
-        } catch (err: any) {
-          if (!isNetworkErr(String(err?.message ?? ""))) throw err;
-          await fallbackSignUp();
-        }
-        toast.success("Welcome to Giggle! Let's set up your profile.", { duration: 3500 });
-      } else {
-        try {
-          const { error } = await supabase.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-        } catch (err: any) {
-          if (!isNetworkErr(String(err?.message ?? ""))) throw err;
-          await fallbackSignIn();
-        }
-        toast.success("Welcome back!");
-      }
-    } catch (err: any) {
-      const message = String(err?.message ?? "Something went wrong");
-      if (message.toLowerCase().includes("email not confirmed")) {
-        toast.error("This account still needs confirmation. Try creating a fresh account now that email confirmations are off.");
-      } else if (err?.code === "weak_password" || err?.error_code === "weak_password" || message.toLowerCase().includes("weak")) {
-        toast.error("Choose a stronger, less common password.");
-      } else if (isNetworkErr(message)) {
-        toast.error("Couldn’t reach the login service. Please try again in a moment.");
-      } else {
-        toast.error(message);
-      }
-    } finally {
-      setSubmitting(false);
-    }
+    navigate("/onboarding", { replace: true });
   };
 
   return (
