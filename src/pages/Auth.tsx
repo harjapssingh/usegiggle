@@ -31,14 +31,14 @@ export default function Auth() {
     setSubmitting(true);
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email, password,
-          options: { emailRedirectTo: `https://usegiggle.vercel.app/onboarding` },
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/onboarding` },
         });
         if (error) throw error;
         toast.success("Welcome to Giggle! Let's set up your profile.", { duration: 3500 });
-        toast.success("Check your email for a confirmation link!");
-        // AuthContext will pick up the session; useEffect routes to /onboarding.
+        if (data.session) navigate("/onboarding", { replace: true });
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -48,6 +48,8 @@ export default function Auth() {
       const message = String(err?.message ?? "Something went wrong");
       if (message.toLowerCase().includes("failed to fetch")) {
         toast.error("Couldn’t reach the login service. Turn off VPN/ad blockers or try another network, then retry.");
+      } else if (message.toLowerCase().includes("email not confirmed")) {
+        toast.error("This account still needs confirmation. Try creating a fresh account now that email confirmations are off.");
       } else if (err?.code === "weak_password" || err?.error_code === "weak_password" || message.toLowerCase().includes("weak")) {
         toast.error("Choose a stronger, less common password.");
       } else {
