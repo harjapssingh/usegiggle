@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Clock, Sparkles, ShieldCheck, ShieldAlert } from "lucide-react";
+import { MapPin, Clock, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { LOCAL_CHANGE_EVENT, expressInterest as saveInterest, getJobsPageData } from "@/lib/localApp";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { categoryIcon, categoryLabel, type CategoryKey } from "@/lib/categories";
@@ -20,81 +20,30 @@ interface Job {
   status?: string;
 }
 
-type ApprovalState = "approved" | "pending" | "none";
-
 export default function Jobs() {
-  const { user } = useAuth();
+  const { profile } = useAuth();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [interested, setInterested] = useState<Set<string>>(new Set());
-  const [isUnder18, setIsUnder18] = useState(false);
-  const [approvals, setApprovals] = useState<Record<string, ApprovalState>>({});
 
   useEffect(() => {
-    const fetch = async () => {
-      // Explicit columns — PIN fields are not selectable from the table; assigned helper retrieves via RPC.
-      const JOB_COLS = "id, category, description, budget, status, neighbourhood, scheduled_date, scheduled_time_window, homeowner_id, helper_id, created_at";
-      const [{ data: jobsData }, { data: myInt }, { data: assigned }, { data: hp }] = await Promise.all([
-        supabase.from("jobs").select(JOB_COLS).eq("status", "open").order("created_at", { ascending: false }),
-        user ? supabase.from("job_interests").select("job_id").eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
-        user ? supabase.from("jobs").select(JOB_COLS).eq("helper_id", user.id) : Promise.resolve({ data: [] as any[] }),
-        user ? supabase.from("helper_profiles").select("is_under_18").eq("id", user.id).maybeSingle() : Promise.resolve({ data: null as any }),
-      ]);
-      const interestIds = new Set<string>((myInt ?? []).map((r: { job_id: string }) => r.job_id));
-      setInterested(interestIds);
-      setIsUnder18(!!hp?.is_under_18);
-
-      // Build "my jobs" = interested jobs (any status) + assigned jobs, deduped
-      const map = new Map<string, Job>();
-      (assigned as Job[] ?? []).forEach((j) => map.set(j.id, j));
-      if (interestIds.size && user) {
-        const { data: ij } = await supabase.from("jobs").select(JOB_COLS).in("id", Array.from(interestIds));
-        (ij as Job[] ?? []).forEach((j) => map.set(j.id, j));
-      }
-      const mine = Array.from(map.values());
-      setMyJobs(mine);
-
-      // For under-18 helpers, fetch approval state for each "my job"
-      if (user && hp?.is_under_18 && mine.length) {
-        const { data: appr } = await supabase
-          .from("job_helper_approvals")
-          .select("job_id, approved")
-          .eq("helper_id", user.id)
-          .in("job_id", mine.map((j) => j.id));
-        const byId: Record<string, ApprovalState> = {};
-        mine.forEach((j) => { byId[j.id] = "none"; });
-        (appr ?? []).forEach((r: any) => { byId[r.job_id] = r.approved ? "approved" : "pending"; });
-        setApprovals(byId);
-      }
-
-      // Open feed: hide ones I've already shown interest in
-      setJobs(((jobsData as Job[]) ?? []).filter((j) => !interestIds.has(j.id)));
+    const fetch = () => {
+      const data = getJobsPageData(profile);
+      setInterested(data.interestedIds);
+      setMyJobs(data.myJobs as Job[]);
+      setJobs(data.openJobs as Job[]);
       setLoading(false);
     };
     fetch();
-  }, [user]);
+    window.addEventListener(LOCAL_CHANGE_EVENT, fetch);
+    return () => window.removeEventListener(LOCAL_CHANGE_EVENT, fetch);
+  }, [profile]);
 
   const expressInterest = async (jobId: string) => {
-    if (!user) return;
-    const { error } = await supabase.from("job_interests").insert({ job_id: jobId, helper_id: user.id });
-    if (error) { toast.error(error.message); return; }
+    saveInterest(jobId, profile);
     setInterested((s) => new Set([...s, jobId]));
     toast.success("Interest sent! The homeowner will see it.");
-
-    if (isUnder18) {
-      const { error: rerr } = await supabase.rpc("request_job_approval", { _job_id: jobId });
-      if (rerr) {
-        if (/No confirmed guardian/i.test(rerr.message)) {
-          toast.warning("Link a guardian from your Profile before they can approve jobs.");
-        } else {
-          toast.error(rerr.message);
-        }
-      } else {
-        toast.info("Your guardian needs to approve this in their app.");
-        setApprovals((a) => ({ ...a, [jobId]: "pending" }));
-      }
-    }
   };
 
   return (
@@ -106,7 +55,6 @@ export default function Jobs() {
           <div className="grid gap-3 md:grid-cols-2">
             {myJobs.map((j) => {
               const Icon = categoryIcon(j.category);
-              const appr = approvals[j.id];
               return (
                 <Link key={j.id} to={`/app/jobs/${j.id}`} className="card-soft card-soft-hover p-5 flex items-start gap-3">
                   <div className="h-11 w-11 rounded-xl bg-primary-soft text-primary flex items-center justify-center shrink-0">
@@ -117,16 +65,6 @@ export default function Jobs() {
                     <p className="font-semibold leading-snug line-clamp-2">{j.description}</p>
                     <div className="flex flex-wrap items-center gap-2 mt-1.5">
                       <p className="text-xs text-muted-foreground capitalize">Status: {(j as any).status?.replace("_", " ") ?? "open"}</p>
-                      {isUnder18 && appr === "pending" && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
-                          <ShieldAlert className="h-3 w-3" /> Awaiting guardian
-                        </span>
-                      )}
-                      {isUnder18 && appr === "approved" && (
-                        <span className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium bg-primary-soft text-primary">
-                          <ShieldCheck className="h-3 w-3" /> Guardian approved
-                        </span>
-                      )}
                     </div>
                   </div>
                   <span className="font-display text-lg text-primary">${Number(j.budget).toFixed(0)}</span>

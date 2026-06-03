@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PlusCircle, MapPin, Clock, ArrowRight, Sparkles, MessageSquare } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { LOCAL_CHANGE_EVENT, getDashboardJobs } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { categoryIcon, categoryLabel, type CategoryKey } from "@/lib/categories";
@@ -36,44 +36,23 @@ export default function Dashboard() {
   const isHomeowner = profile?.role === "homeowner";
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = () => {
       setLoading(true);
-      // Explicit columns — PIN fields are not selectable from the table.
-      const JOB_COLS = "id, category, description, budget, status, neighbourhood, scheduled_date, scheduled_time_window, homeowner_id, helper_id, created_at";
-      if (isHomeowner) {
-        const { data } = await supabase.from("jobs").select(JOB_COLS)
-          .eq("homeowner_id", profile!.id)
-          .order("created_at", { ascending: false }).limit(20);
-        setJobs((data as Job[]) ?? []);
-      } else {
-        // Helper: open jobs feed + their own activity (interested or assigned)
-        const [{ data: openJobs }, { data: interests }, { data: assigned }] = await Promise.all([
-          supabase.from("jobs").select(JOB_COLS).eq("status", "open").order("created_at", { ascending: false }).limit(10),
-          supabase.from("job_interests").select("job_id").eq("helper_id", profile!.id),
-          supabase.from("jobs").select(JOB_COLS).eq("helper_id", profile!.id).order("created_at", { ascending: false }),
-        ]);
-        const interestIds = (interests ?? []).map((r: any) => r.job_id);
-        let interestJobs: Job[] = [];
-        if (interestIds.length) {
-          const { data: ij } = await supabase.from("jobs").select(JOB_COLS).in("id", interestIds);
-          interestJobs = (ij as Job[]) ?? [];
-        }
-        // Merge assigned + interested, dedupe by id
-        const map = new Map<string, Job>();
-        [...(assigned as Job[] ?? []), ...interestJobs].forEach((j) => map.set(j.id, j));
-        setMyActivity(Array.from(map.values()).sort((a, b) => (b.created_at > a.created_at ? 1 : -1)));
-        setJobs((openJobs as Job[]) ?? []);
-      }
+      const data = getDashboardJobs(profile);
+      setJobs(data.jobs as Job[]);
+      setMyActivity(data.myActivity as Job[]);
       setLoading(false);
     };
-    if (profile) fetchData();
+    fetchData();
+    window.addEventListener(LOCAL_CHANGE_EVENT, fetchData);
+    return () => window.removeEventListener(LOCAL_CHANGE_EVENT, fetchData);
   }, [profile, isHomeowner]);
 
   return (
     <div className="space-y-8">
       <div>
         <p className="text-muted-foreground text-sm">Welcome back,</p>
-        <h1 className="font-display text-3xl md:text-4xl">{profile?.full_name?.split(" ")[0]}</h1>
+        <h1 className="font-display text-3xl md:text-4xl">{profile?.full_name?.split(" ")[0] ?? "Neighbour"}</h1>
       </div>
 
       {/* Primary action */}

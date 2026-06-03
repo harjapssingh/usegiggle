@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { LOCAL_CHANGE_EVENT, getMessages, sendMessage } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -22,19 +22,10 @@ export function Chat({ jobId, otherName }: { jobId: string; otherName: string })
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let mounted = true;
-    supabase.from("messages").select("*").eq("job_id", jobId).order("created_at").then(({ data }) => {
-      if (mounted) setMessages((data as Message[]) ?? []);
-    });
-
-    const channel = supabase
-      .channel(`messages-${jobId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `job_id=eq.${jobId}` }, (payload) => {
-        setMessages((prev) => [...prev, payload.new as Message]);
-      })
-      .subscribe();
-
-    return () => { mounted = false; supabase.removeChannel(channel); };
+    const load = () => setMessages(getMessages(jobId) as Message[]);
+    load();
+    window.addEventListener(LOCAL_CHANGE_EVENT, load);
+    return () => window.removeEventListener(LOCAL_CHANGE_EVENT, load);
   }, [jobId]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
@@ -44,8 +35,8 @@ export function Chat({ jobId, otherName }: { jobId: string; otherName: string })
     setSending(true);
     const body = draft.trim();
     setDraft("");
-    const { error } = await supabase.from("messages").insert({ job_id: jobId, sender_id: user.id, body });
-    if (error) { toast.error(error.message); setDraft(body); }
+    sendMessage(jobId, user.id, body);
+    toast.success("Message sent");
     setSending(false);
   };
 

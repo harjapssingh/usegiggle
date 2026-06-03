@@ -1,21 +1,10 @@
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
-
-type Role = "helper" | "homeowner" | "guardian" | "admin";
-
-interface Profile {
-  id: string;
-  full_name: string;
-  role: Role;
-  neighbourhood: string | null;
-  avatar_url: string | null;
-}
+import { LOCAL_CHANGE_EVENT, getCurrentProfile, getCurrentUser, localSignOut, type LocalProfile, type LocalUser } from "@/lib/localApp";
 
 interface AuthContextValue {
-  session: Session | null;
-  user: User | null;
-  profile: Profile | null;
+  session: { user: LocalUser } | null;
+  user: LocalUser | null;
+  profile: LocalProfile | null;
   loading: boolean;
   /** True once we've checked for the user's profile row. */
   profileChecked: boolean;
@@ -26,59 +15,37 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [profileChecked, setProfileChecked] = useState(false);
+  const [session, setSession] = useState<{ user: LocalUser } | null>(null);
+  const [user, setUser] = useState<LocalUser | null>(null);
+  const [profile, setProfile] = useState<LocalProfile | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [profileChecked, setProfileChecked] = useState(true);
 
-  const fetchProfile = useCallback(async (uid: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, role, neighbourhood, avatar_url")
-      .eq("id", uid)
-      .maybeSingle();
-    setProfile((data as Profile) ?? null);
+  const syncLocalAuth = useCallback(() => {
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+    setSession(currentUser ? { user: currentUser } : null);
+    setProfile(getCurrentProfile());
     setProfileChecked(true);
     setLoading(false);
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id);
-  }, [user, fetchProfile]);
+    syncLocalAuth();
+  }, [syncLocalAuth]);
 
   useEffect(() => {
-    // Set up listener FIRST, then check session.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        // Defer Supabase calls outside the callback.
-        setTimeout(() => fetchProfile(s.user.id), 0);
-      } else {
-        setProfile(null);
-        setProfileChecked(true);
-        setLoading(false);
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        fetchProfile(s.user.id).finally(() => setLoading(false));
-      } else {
-        setProfileChecked(true);
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [fetchProfile]);
+    syncLocalAuth();
+    window.addEventListener(LOCAL_CHANGE_EVENT, syncLocalAuth);
+    window.addEventListener("storage", syncLocalAuth);
+    return () => {
+      window.removeEventListener(LOCAL_CHANGE_EVENT, syncLocalAuth);
+      window.removeEventListener("storage", syncLocalAuth);
+    };
+  }, [syncLocalAuth]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setProfile(null);
+    localSignOut();
   };
 
   return (

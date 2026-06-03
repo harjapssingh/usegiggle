@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { createJob } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 export default function PostJob() {
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { profile } = useAuth();
 
   const [step, setStep] = useState(0);
   const [category, setCategory] = useState<CategoryKey | null>(null);
@@ -41,27 +41,18 @@ export default function PostJob() {
   };
 
   const submit = async () => {
-    if (!user || !category) return;
+    if (!category) return;
     setSubmitting(true);
-    try {
-      const { error } = await supabase.from("jobs").insert({
-        homeowner_id: user.id,
-        category,
-        description: description.trim(),
-        scheduled_date: date,
-        scheduled_time_window: timeWindow || null,
-        budget: Number(budget),
-        neighbourhood: profile?.neighbourhood ?? null,
-        status: "open",
-      });
-      if (error) throw error;
-      toast.success("Job posted! Neighbours nearby will see it.");
-      navigate("/app", { replace: true });
-    } catch (err: any) {
-      toast.error(err?.message ?? "Couldn't post job");
-    } finally {
-      setSubmitting(false);
-    }
+    createJob(profile, {
+      category,
+      description: description.trim(),
+      scheduled_date: date,
+      scheduled_time_window: timeWindow || null,
+      budget: Number(budget),
+    });
+    toast.success("Job posted! Neighbours nearby will see it.");
+    navigate("/app", { replace: true });
+    setSubmitting(false);
   };
 
   return (

@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Heart, HandHeart, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { saveProfile } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +18,7 @@ type Role = "helper" | "homeowner" | "guardian";
 export default function Onboarding() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { user, profile, profileChecked, refreshProfile } = useAuth();
+  const { user, profile, profileChecked } = useAuth();
 
   // If they already have a profile, never show onboarding again.
   useEffect(() => {
@@ -51,11 +51,10 @@ export default function Onboarding() {
   const steps = useMemo(() => {
     if (!role) return ["role"];
     const base = ["role", "name"];
-    if (role === "guardian") return [...base, "guardianPin"];
+    if (role === "guardian") return base;
     const baseWithHood = [...base, "neighbourhood"];
     if (role === "homeowner") return [...baseWithHood, "ageRange", "access"];
     const helperSteps = [...baseWithHood, "age", "school"];
-    if (isUnder18) helperSteps.push("guardianLink");
     return [...helperSteps, "categories", "rate", "bio"];
   }, [role, isUnder18]);
 
@@ -75,8 +74,8 @@ export default function Onboarding() {
       case "neighbourhood": return neighbourhood.trim().length >= 2;
       case "age": return Number(age) >= 14 && Number(age) <= 24;
       case "school": return school.trim().length >= 2;
-      case "guardianLink": return guardianCode.trim().length >= 4;
-      case "guardianPin": return /^\d{4}$/.test(guardianPin) && guardianPin === guardianPinConfirm;
+      case "guardianLink": return true;
+      case "guardianPin": return true;
       case "categories": return categories.length > 0;
       case "rate": return Number(hourlyRate) >= 5;
       case "bio": return true;
@@ -87,6 +86,20 @@ export default function Onboarding() {
   };
 
   const handleFinish = async () => {
+    const id = user?.id ?? `local-${Date.now()}`;
+    saveProfile({
+      id,
+      full_name: fullName.trim() || "Neighbour",
+      role: role ?? "helper",
+      neighbourhood: role === "guardian" ? null : (neighbourhood.trim() || "Local neighbourhood"),
+      avatar_url: null,
+      age: age ? Number(age) : null,
+      school_name: school.trim() || null,
+      bio: bio.trim() || null,
+      categories,
+      hourly_rate: hourlyRate ? Number(hourlyRate) : null,
+      is_under_18: isUnder18,
+    });
     toast.success("You're all set! Welcome to Giggle 🌱");
     navigate("/app", { replace: true });
   };

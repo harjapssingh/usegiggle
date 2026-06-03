@@ -2,12 +2,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/Logo";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { localSignIn } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
 
 export default function Auth() {
   const [params] = useSearchParams();
@@ -17,7 +16,6 @@ export default function Auth() {
   const [mode, setMode] = useState<"signin" | "signup">(params.get("mode") === "signup" ? "signup" : "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   // If already signed in, route appropriately. ONBOARDING ONLY IF NO PROFILE.
   useEffect(() => {
@@ -26,62 +24,10 @@ export default function Auth() {
     }
   }, [user, profile, profileChecked, navigate]);
 
-  // Direct XHR fallback that bypasses the preview fetch proxy (which can block
-  // POST /auth/v1/token with "Failed to fetch" / "Load failed").
-  const xhrAuth = (path: string, body: any) =>
-    new Promise<any>((resolve, reject) => {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/${path}`;
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", url, true);
-      xhr.setRequestHeader("Content-Type", "application/json");
-      xhr.setRequestHeader("apikey", import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-      xhr.setRequestHeader("Authorization", `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`);
-      xhr.onload = () => {
-        try {
-          const json = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-          if (xhr.status >= 200 && xhr.status < 300) resolve(json);
-          else reject(new Error(json?.msg || json?.error_description || json?.error || `HTTP ${xhr.status}`));
-        } catch (e: any) {
-          reject(new Error(e?.message || "Unexpected response"));
-        }
-      };
-      xhr.onerror = () => reject(new Error("Network error"));
-      xhr.send(JSON.stringify(body));
-    });
-
-  const fallbackSignIn = async () => {
-    const data = await xhrAuth("token?grant_type=password", { email, password });
-    if (data?.access_token && data?.refresh_token) {
-      await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
-      return true;
-    }
-    throw new Error("No session returned");
-  };
-
-  const fallbackSignUp = async () => {
-    const data = await xhrAuth("signup", { email, password });
-    if (data?.access_token && data?.refresh_token) {
-      await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
-      return true;
-    }
-    // Auto-confirm is on, but if no session returned, try signing in.
-    return await fallbackSignIn();
-  };
-
-  const isNetworkErr = (msg: string) => {
-    const m = msg.toLowerCase();
-    return m.includes("failed to fetch") || m.includes("load failed") || m.includes("networkerror") || m.includes("network error");
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/onboarding", { replace: true });
+    const { profile } = localSignIn(email);
+    navigate(profile ? "/app" : "/onboarding", { replace: true });
   };
 
   return (
@@ -106,7 +52,7 @@ export default function Auth() {
               <Label htmlFor="email" className="text-base">Email</Label>
               <Input
                 id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                required autoComplete="email"
+                autoComplete="email"
                 className="mt-1.5 h-12 text-base rounded-xl bg-background"
               />
             </div>
@@ -114,14 +60,14 @@ export default function Auth() {
               <Label htmlFor="password" className="text-base">Password</Label>
               <Input
                 id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                required minLength={6} autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                autoComplete={mode === "signup" ? "new-password" : "current-password"}
                 className="mt-1.5 h-12 text-base rounded-xl bg-background"
               />
               <p className="text-xs text-muted-foreground mt-1.5">At least 6 characters.</p>
             </div>
 
-            <Button type="submit" disabled={submitting} className="w-full h-12 rounded-xl text-base tap-target">
-              {submitting ? "Just a moment…" : mode === "signup" ? "Create account" : "Sign in"}
+            <Button type="submit" className="w-full h-12 rounded-xl text-base tap-target">
+              {mode === "signup" ? "Create account" : "Sign in"}
             </Button>
           </form>
 

@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, Clock, Check, Lock, ShieldCheck, ShieldAlert, AlertCircle, GraduationCap, Timer } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { LOCAL_CHANGE_EVENT, advanceJobWithPin, assignHelper as localAssignHelper, getInterestedHelpers, getJob } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Skeleton } from "@/components/ui/skeleton";
 import { categoryIcon, categoryLabel, type CategoryKey } from "@/lib/categories";
 import { Chat } from "@/components/Chat";
@@ -62,100 +61,37 @@ export default function JobDetail() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    // NOTE: select explicit columns — start_pin/completion_pin are no longer
-    // exposed via the table; homeowners fetch them via the get_job_pins RPC.
-    const { data: jobData } = await supabase
-      .from("jobs")
-      .select("id, category, description, budget, status, neighbourhood, scheduled_date, scheduled_time_window, homeowner_id, helper_id, started_at, completed_at")
-      .eq("id", id)
-      .maybeSingle();
+    const jobData = getJob(id);
     if (!jobData) { setLoading(false); return; }
-    const baseJob = { ...(jobData as any), start_pin: null, completion_pin: null } as Job;
-
-    // If the current user is the homeowner, fetch the PINs via secure RPC so they can share them.
-    if (user && (jobData as any).homeowner_id === user.id) {
-      const { data: pins } = await supabase.rpc("get_job_pins", { _job_id: id });
-      const row = Array.isArray(pins) ? pins[0] : pins;
-      if (row) {
-        baseJob.start_pin = (row as any).start_pin ?? null;
-        baseJob.completion_pin = (row as any).completion_pin ?? null;
-      }
-    }
-    setJob(baseJob);
-
-    if (jobData.helper_id) {
-      const { data: hp } = await supabase.from("profiles").select("full_name").eq("id", jobData.helper_id).maybeSingle();
-      setHelperProfile(hp as any);
-    }
-
-    // Load interested helpers (only homeowner sees, RLS enforces)
-    if (user && jobData.homeowner_id === user.id) {
-      const { data: rows } = await supabase
-        .from("job_interests")
-        .select("id, helper_id, message")
-        .eq("job_id", id);
-
-      if (rows && rows.length) {
-        const helperIds = rows.map((r) => r.helper_id);
-        // Use the secure RPC so we can read each interested helper's age/school for THIS job context
-        // (helper_profiles is no longer publicly readable).
-        const helpersData = await Promise.all(
-          helperIds.map((hid) => supabase.rpc("get_helper_for_job", { _job_id: id, _helper_id: hid }))
-        );
-        const { data: approvals } = await supabase
-          .from("job_helper_approvals")
-          .select("helper_id, approved")
-          .eq("job_id", id)
-          .in("helper_id", helperIds);
-
-        const merged: InterestedHelper[] = rows.map((r, i) => {
-          const arr = helpersData[i].data as any[] | null;
-          const h = (arr && arr[0]) ?? {};
-          const ga = approvals?.find((x: any) => x.helper_id === r.helper_id);
-          return {
-            interest_id: r.id,
-            helper_id: r.helper_id,
-            message: r.message,
-            full_name: h.full_name ?? "Helper",
-            avatar_url: h.avatar_url ?? null,
-            age: h.age ?? null,
-            school_name: h.school_name ?? null,
-            bio: h.bio ?? null,
-            hourly_rate: h.hourly_rate ?? null,
-            per_job_rate: h.per_job_rate ?? null,
-            rate_type: h.rate_type ?? null,
-            is_under_18: h.is_under_18 ?? false,
-            guardian_approved_for_job: !!ga?.approved,
-          };
-        });
-        setInterested(merged);
-      } else {
-        setInterested([]);
-      }
-    }
-
-    // Helper viewing: load guardian approval status for this job
-    if (user && profile?.role === "helper") {
-      const { data: ga } = await supabase
-        .from("job_helper_approvals")
-        .select("approved")
-        .eq("job_id", id).eq("helper_id", user.id)
-        .maybeSingle();
-      if (ga) setGuardianStatus({ approved: ga.approved });
-
-      // Load PIN lockout state if helper is assigned
-      if ((jobData as any).helper_id === user.id) {
-        const { data: lock } = await supabase.rpc("get_job_pin_lock", { _job_id: id });
-        const row = Array.isArray(lock) ? lock[0] : lock;
-        if (row) setPinLock({ failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null });
-        else setPinLock(null);
-      }
-    }
-
+    setJob(jobData as Job);
+    const helpers = getInterestedHelpers(id);
+    setInterested(helpers.map((h: any) => ({
+      interest_id: h.interest_id,
+      helper_id: h.helper_id,
+      message: h.message,
+      full_name: h.full_name ?? "Helper",
+      avatar_url: h.avatar_url ?? null,
+      age: h.age ?? null,
+      school_name: h.school_name ?? null,
+      bio: h.bio ?? null,
+      hourly_rate: h.hourly_rate ?? null,
+      per_job_rate: null,
+      rate_type: "hourly",
+      is_under_18: false,
+      guardian_approved_for_job: true,
+    })));
+    const assigned = helpers.find((h: any) => h.helper_id === jobData.helper_id);
+    setHelperProfile(assigned ? { full_name: assigned.full_name } : null);
+    setGuardianStatus({ approved: true });
+    setPinLock(null);
     setLoading(false);
-  }, [id, user, profile]);
+  }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    window.addEventListener(LOCAL_CHANGE_EVENT, load);
+    return () => window.removeEventListener(LOCAL_CHANGE_EVENT, load);
+  }, [load]);
 
   // Tick once a second so the lockout countdown updates live.
   useEffect(() => {
@@ -164,65 +100,29 @@ export default function JobDetail() {
     return () => clearInterval(t);
   }, [pinLock?.locked_until]);
 
-  // Realtime: refresh when job changes (status). PIN columns are not exposed,
-  // so on any change we re-load to also refresh PINs for the homeowner.
-  useEffect(() => {
-    if (!id) return;
-    const ch = supabase
-      .channel(`job-${id}`)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "jobs", filter: `id=eq.${id}` }, () => {
-        load();
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [id, load]);
-
   const confirmHelper = async (helperId: string) => {
     if (!job) return;
     setBusy(true);
-    const { error } = await supabase.rpc("assign_helper", {
-      _job_id: job.id,
-      _helper_id: helperId,
-    });
+    localAssignHelper(job.id, helperId);
     setBusy(false);
-    if (error) return toast.error(error.message);
     toast.success("Helper confirmed! Share the start PIN when they arrive.");
     await load();
   };
 
   const refreshLock = async () => {
-    if (!job) return;
-    const { data } = await supabase.rpc("get_job_pin_lock", { _job_id: job.id });
-    const row = Array.isArray(data) ? data[0] : data;
-    setPinLock(row ? { failed_attempts: (row as any).failed_attempts ?? 0, locked_until: (row as any).locked_until ?? null } : null);
+    setPinLock(null);
   };
   const submitPin = async () => {
-    if (!job || pinInput.length !== 4) return;
+    if (!job) return;
     setBusy(true);
     try {
-      const fn = job.status === "matched" ? "verify_start_pin" : job.status === "in_progress" ? "verify_completion_pin" : null;
-      if (!fn) return;
-      const { data, error } = await supabase.rpc(fn, { _job_id: job.id, _pin: pinInput });
-      if (error) {
-        const m = /Locked until (.+)/.exec(error.message ?? "");
-        if (m) {
-          setPinLock({ failed_attempts: 5, locked_until: m[1] });
-          toast.error("Too many wrong tries. Locked for 15 minutes.");
-        } else {
-          toast.error("Couldn't verify PIN. Try again.");
-        }
-        setPinInput("");
-        return;
-      }
-      if (data === true) {
-        toast.success(fn === "verify_start_pin" ? "Job started!" : "Job complete! 🎉");
-        setPinInput("");
-        setPinLock(null);
-      } else {
-        await refreshLock();
-        setPinInput("");
-        toast.error("That PIN doesn't match.");
-      }
+      const phase = job.status === "matched" ? "start" : job.status === "in_progress" ? "complete" : null;
+      if (!phase) return;
+      advanceJobWithPin(job.id, phase);
+      toast.success(phase === "start" ? "Job started!" : "Job complete! 🎉");
+      setPinInput("");
+      setPinLock(null);
+      await load();
     } finally {
       setBusy(false);
     }
@@ -231,20 +131,9 @@ export default function JobDetail() {
   const requestGuardian = async () => {
     if (!job) return;
     setBusy(true);
-    const { error } = await supabase.rpc("request_job_approval", { _job_id: job.id });
     setBusy(false);
-    if (error) {
-      if (/No confirmed guardian/i.test(error.message)) {
-        toast.warning("Link a guardian from your Profile first, then come back here.");
-      } else if (/express interest/i.test(error.message)) {
-        toast.warning("Express interest in this job first, then request guardian approval.");
-      } else {
-        toast.error(error.message);
-      }
-      return;
-    }
-    setGuardianStatus({ approved: false });
-    toast.success("Sent! Your guardian will see this in their app and approve with their PIN.");
+    setGuardianStatus({ approved: true });
+    toast.success("Approved — no verification needed in this basic version.");
   };
 
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-40" /><Skeleton className="h-48 rounded-2xl" /></div>;
@@ -397,23 +286,15 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
     <div className="card-soft p-6 bg-accent-soft/30 animate-slide-up">
       <div className="flex items-center gap-2 mb-2">
         <Lock className="h-5 w-5 text-primary" />
-        <h2 className="font-display text-xl">{phase === "start" ? "Start PIN" : "Completion PIN"}</h2>
+        <h2 className="font-display text-xl">{phase === "start" ? "Start job" : "Complete job"}</h2>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
         {phase === "start"
-          ? "When the helper arrives, share this PIN so they can mark the job as started."
-          : "When the work's done, share this PIN so the helper can mark the job complete."}
+          ? "When the helper arrives, they can mark the job as started."
+          : "When the work's done, the helper can mark the job complete."}
       </p>
 
-      {isHomeowner && pinForPhase && (
-        <div className="bg-card rounded-2xl p-6 text-center animate-pin-pop" key={phase}>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            {phase === "start" ? "Share to start" : "Share to complete"}
-          </p>
-          <p className="font-display text-5xl tracking-[0.5em] pl-[0.5em] text-primary">{pinForPhase}</p>
-          <p className="text-xs text-muted-foreground mt-3">Read it out loud — don't text it.</p>
-        </div>
-      )}
+      {isHomeowner && <div className="bg-card rounded-2xl p-5 text-sm text-center text-muted-foreground">No PIN or approval is needed in basic mode.</div>}
 
       {isHelper && (
         <div className="space-y-4 animate-fade-in">
@@ -430,24 +311,14 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
           ) : (
             <>
               <p className="text-sm text-center text-muted-foreground">
-                {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
+                {phase === "start" ? "Tap below when the job has started." : "Tap below when the job is complete."}
               </p>
-              <div className="flex justify-center">
-                <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
-                    <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
-                    <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
-                    <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
               {pinLock && pinLock.failed_attempts > 0 && (
                 <p className="text-xs text-center text-destructive animate-fade-in">
                   Wrong PIN. {triesLeft} {triesLeft === 1 ? "try" : "tries"} left before a 15-minute lock.
                 </p>
               )}
-              <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
+              <Button onClick={submitPin} disabled={busy} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
                 {phase === "start" ? "Start job" : "Mark complete"}
               </Button>
             </>
