@@ -114,7 +114,7 @@ export default function JobDetail() {
     setPinLock(null);
   };
   const submitPin = async () => {
-    if (!job || pinInput.length !== 4) return;
+    if (!job) return;
     setBusy(true);
     try {
       const phase = job.status === "matched" ? "start" : job.status === "in_progress" ? "complete" : null;
@@ -287,12 +287,12 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
     <div className="card-soft p-6 bg-accent-soft/30 animate-slide-up">
       <div className="flex items-center gap-2 mb-2">
         <Lock className="h-5 w-5 text-primary" />
-        <h2 className="font-display text-xl">{phase === "start" ? "Start PIN" : "Completion PIN"}</h2>
+        <h2 className="font-display text-xl">{phase === "start" ? "Start job" : "Complete job"}</h2>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
         {phase === "start"
-          ? "When the helper arrives, share this PIN so they can mark the job as started."
-          : "When the work's done, share this PIN so the helper can mark the job complete."}
+          ? "When the helper arrives, they can mark the job as started."
+          : "When the work's done, the helper can mark the job complete."}
       </p>
 
       {isHomeowner && pinForPhase && (
@@ -301,7 +301,7 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
             {phase === "start" ? "Share to start" : "Share to complete"}
           </p>
           <p className="font-display text-5xl tracking-[0.5em] pl-[0.5em] text-primary">{pinForPhase}</p>
-          <p className="text-xs text-muted-foreground mt-3">Read it out loud — don't text it.</p>
+          <p className="text-xs text-muted-foreground mt-3">Basic mode: no verification required.</p>
         </div>
       )}
 
@@ -320,7 +320,7 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
           ) : (
             <>
               <p className="text-sm text-center text-muted-foreground">
-                {phase === "start" ? "Ask the homeowner for the 4-digit start PIN." : "Ask the homeowner for the 4-digit completion PIN."}
+                {phase === "start" ? "Tap below when the job has started." : "Tap below when the job is complete."}
               </p>
               <div className="flex justify-center">
                 <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
@@ -337,7 +337,7 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
                   Wrong PIN. {triesLeft} {triesLeft === 1 ? "try" : "tries"} left before a 15-minute lock.
                 </p>
               )}
-              <Button onClick={submitPin} disabled={busy || pinInput.length !== 4} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
+              <Button onClick={submitPin} disabled={busy} className="w-full rounded-xl tap-target transition-transform active:scale-[0.98]">
                 {phase === "start" ? "Start job" : "Mark complete"}
               </Button>
             </>
