@@ -1,10 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, MapPin, Clock, Check, Lock, ShieldCheck, ShieldAlert, AlertCircle, GraduationCap, Timer } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { LOCAL_CHANGE_EVENT, advanceJobWithPin, assignHelper as localAssignHelper, getInterestedHelpers, getJob } from "@/lib/localApp";
 import { Button } from "@/components/ui/button";
-import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { Skeleton } from "@/components/ui/skeleton";
 import { categoryIcon, categoryLabel, type CategoryKey } from "@/lib/categories";
 import { Chat } from "@/components/Chat";
@@ -295,15 +294,7 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
           : "When the work's done, the helper can mark the job complete."}
       </p>
 
-      {isHomeowner && pinForPhase && (
-        <div className="bg-card rounded-2xl p-6 text-center animate-pin-pop" key={phase}>
-          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-            {phase === "start" ? "Share to start" : "Share to complete"}
-          </p>
-          <p className="font-display text-5xl tracking-[0.5em] pl-[0.5em] text-primary">{pinForPhase}</p>
-          <p className="text-xs text-muted-foreground mt-3">Basic mode: no verification required.</p>
-        </div>
-      )}
+      {isHomeowner && <div className="bg-card rounded-2xl p-5 text-sm text-center text-muted-foreground">No PIN or approval is needed in basic mode.</div>}
 
       {isHelper && (
         <div className="space-y-4 animate-fade-in">
@@ -322,16 +313,6 @@ function PinBlock({ job, isHomeowner, isHelper, pinInput, setPinInput, submitPin
               <p className="text-sm text-center text-muted-foreground">
                 {phase === "start" ? "Tap below when the job has started." : "Tap below when the job is complete."}
               </p>
-              <div className="flex justify-center">
-                <InputOTP maxLength={4} value={pinInput} onChange={setPinInput}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} className="h-14 w-14 text-2xl font-display rounded-xl" />
-                    <InputOTPSlot index={1} className="h-14 w-14 text-2xl font-display" />
-                    <InputOTPSlot index={2} className="h-14 w-14 text-2xl font-display" />
-                    <InputOTPSlot index={3} className="h-14 w-14 text-2xl font-display rounded-xl" />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
               {pinLock && pinLock.failed_attempts > 0 && (
                 <p className="text-xs text-center text-destructive animate-fade-in">
                   Wrong PIN. {triesLeft} {triesLeft === 1 ? "try" : "tries"} left before a 15-minute lock.
