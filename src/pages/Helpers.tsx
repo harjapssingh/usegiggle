@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Star, BadgeCheck, MapPin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { LOCAL_CHANGE_EVENT, getHelpers } from "@/lib/localApp";
 import { Skeleton } from "@/components/ui/skeleton";
 import { categoryLabel, type CategoryKey } from "@/lib/categories";
 
@@ -18,20 +18,20 @@ export default function Helpers() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      // Use the public-safe view that excludes minors' guardian/age/school details.
-      const { data: hData } = await supabase
-        .from("helper_profiles_public")
-        .select("id, bio, school_verified, hourly_rate, categories")
-        .limit(50);
-      const ids = (hData ?? []).map((h: any) => h.id);
-      const { data: pData } = ids.length
-        ? await supabase.from("profiles").select("id, full_name, neighbourhood, avatar_url").in("id", ids)
-        : { data: [] as any[] };
-      const profilesMap = new Map((pData ?? []).map((p: any) => [p.id, p]));
-      setHelpers(((hData ?? []) as any[]).map((h) => ({ ...h, profiles: profilesMap.get(h.id) ?? null })));
+    const load = () => {
+      setHelpers(getHelpers().map((h) => ({
+        id: h.id,
+        bio: h.bio ?? null,
+        school_verified: true,
+        hourly_rate: h.hourly_rate ?? null,
+        categories: h.categories ?? [],
+        profiles: { full_name: h.full_name, neighbourhood: h.neighbourhood, avatar_url: h.avatar_url },
+      })) as Helper[]);
       setLoading(false);
-    })();
+    };
+    load();
+    window.addEventListener(LOCAL_CHANGE_EVENT, load);
+    return () => window.removeEventListener(LOCAL_CHANGE_EVENT, load);
   }, []);
 
   return (
